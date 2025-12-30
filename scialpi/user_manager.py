@@ -18,6 +18,8 @@ def init_user_data() -> None:
         path = base_dir / name
         if not path.exists():
             path.write_text("[]", encoding="utf-8")
+    photos_dir = base_dir / "user_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
 
 
 def _path(name: str) -> Path:
@@ -65,6 +67,7 @@ def create_user(
         "is_guide": bool(is_guide),
         "cai_courses": cai_courses,
         "score": 0,
+        "photo_filename": None,
         "created_at": _now_iso(),
     }
     users.append(user)
@@ -87,6 +90,10 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def list_users() -> List[Dict[str, Any]]:
+    return _load_list("users.json")
+
+
 def authenticate(email: str, password: str) -> Optional[Dict[str, Any]]:
     user = get_user_by_email(email)
     if not user:
@@ -103,6 +110,16 @@ def set_password(user_id: str, new_password: str) -> None:
             user["password_hash"] = generate_password_hash(new_password)
             _save_list("users.json", users)
             return
+
+
+def set_user_photo(user_id: str, filename: str) -> Optional[Dict[str, Any]]:
+    users = _load_list("users.json")
+    for user in users:
+        if user.get("id") == user_id:
+            user["photo_filename"] = filename
+            _save_list("users.json", users)
+            return user
+    return None
 
 
 def create_reset_token(user_id: str) -> str:

@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <style>
+    .people-hero { display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px; }
+    .search-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .search-bar input { min-width: 220px; }
+    .people-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .person-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      color: inherit;
+      text-decoration: none;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .person-card:hover { transform: translateY(-3px); border-color: rgba(255, 62, 165, 0.5); }
+    .person-header { display: flex; gap: 12px; align-items: center; }
+    .person-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: linear-gradient(140deg, rgba(255, 62, 165, 0.25), rgba(52, 179, 255, 0.2));
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .person-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .person-name { font-weight: 600; }
+    .person-meta { font-size: 0.82rem; color: var(--muted); }
+    .person-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .person-tags span { font-size: 0.75rem; padding: 4px 8px; border-radius: 999px; background: rgba(52, 179, 255, 0.12); border: 1px solid rgba(52, 179, 255, 0.25); }
+    .empty-state { color: var(--muted); font-size: 0.9rem; padding: 12px; border: 1px dashed var(--border); border-radius: 14px; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="people-hero">
+    <h1 class="title-dynamic mb-0">Persone</h1>
+    <p class="text-muted mb-0">Cerca persone, esplora i loro profili e le gite piu recenti.</p>
+    <form class="search-bar" method="get" action="{{ url_for('scialpi.people_page') }}">
+      <input type="text" class="form-control" name="q" placeholder="Cerca per nome o email" value="{{ query }}" />
+      <button class="btn btn-primary" type="submit">Cerca</button>
+    </form>
+  </div>
+
+  {% if results %}
+    <div class="people-grid">
+      {% for person in results %}
+        <a class="person-card" href="{{ url_for('scialpi.people_profile', user_id=person.id) }}">
+          <div class="person-header">
+            <div class="person-avatar">
+              {% if person.photo_url %}
+                <img src="{{ person.photo_url }}" alt="Foto profilo" />
+              {% else %}
+                {{ person.name[:1].upper() }}
+              {% endif %}
+            </div>
+            <div>
+              <div class="person-name">{{ person.name }}</div>
+              <div class="person-meta">Score {{ person.score }}</div>
+            </div>
+          </div>
+          <div class="person-tags">
+            {% if person.is_guide %}
+              <span>Guida</span>
+            {% endif %}
+            {% if person.cai_courses %}
+              <span>CAI: {{ person.cai_courses }}</span>
+            {% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">Nessun profilo trovato. Prova con un altro nome.</div>
+  {% endif %}
+{% endblock %}

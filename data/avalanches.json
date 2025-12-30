@@ -11,12 +11,15 @@
     "lat": 45.520685,
     "lon": 7.201401,
     "timestamp": "2025-12-29T16:22:33.244620+00:00",
-    "confirmations": 1,
+    "confirmations": 2,
     "description": null,
     "size": "small",
     "danger": 2,
     "slope": 34.0,
-    "image": null
+    "image": null,
+    "confirmation_user_ids": [
+      "00f3eff61f0c454e95a672e0535b8270"
+    ]
   },
   {
     "id": 3,

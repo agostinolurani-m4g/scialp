@@ -610,6 +610,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }).addTo(photoLayer);
   }
 
+  function uploadPhotoFiles(files) {
+    if (!files || !files.length) {
+      if (photoStatus) photoStatus.textContent = 'Seleziona una foto.';
+      return;
+    }
+    if (!photoLatEl || !photoLonEl || !photoLatEl.value || !photoLonEl.value) {
+      if (photoStatus) photoStatus.textContent = 'Seleziona la posizione sulla mappa.';
+      return;
+    }
+    const total = files.length;
+    let index = 0;
+    const uploadNext = () => {
+      const file = files[index];
+      const formData = new FormData();
+      formData.append('image', file);
+      if (photoLatEl && photoLatEl.value) formData.append('lat', photoLatEl.value);
+      if (photoLonEl && photoLonEl.value) formData.append('lon', photoLonEl.value);
+      if (photoStatus) photoStatus.textContent = `Caricamento ${index + 1}/${total}...`;
+      return fetch(`/api/days/${dayIdEl.value}/photos`, {
+        method: 'POST',
+        body: formData
+      })
+        .then((res) => {
+          if (!res.ok) {
+            return res.json().then((payload) => {
+              throw new Error(payload.error || 'Errore nel caricamento.');
+            });
+          }
+          return res.json();
+        })
+        .then(() => {
+          index += 1;
+          if (index < total) {
+            return uploadNext();
+          }
+          return null;
+        });
+    };
+    uploadNext()
+      .then(() => {
+        if (photoStatus) photoStatus.textContent = 'Foto caricate.';
+        if (photoFileEl) photoFileEl.value = '';
+        clearPhotoDraft();
+        if (dayRouteIdEl.value) {
+          selectRoute(dayRouteIdEl.value, dayIdEl.value);
+        } else if (currentRouteId) {
+          selectRoute(currentRouteId, dayIdEl.value);
+        }
+      })
+      .catch((err) => {
+        if (photoStatus) photoStatus.textContent = err.message || 'Errore nel caricamento.';
+      });
+  }
+
   function renderPhotos(photos) {
     if (photoLayer) {
       photoLayer.clearLayers();
@@ -978,34 +1032,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (photoStatus) photoStatus.textContent = 'Salva prima la giornata.';
         return;
       }
-      const file = photoFileEl && photoFileEl.files ? photoFileEl.files[0] : null;
-      if (!file) {
-        if (photoStatus) photoStatus.textContent = 'Seleziona una foto.';
-        return;
-      }
-      const formData = new FormData();
-      formData.append('image', file);
-      if (photoLatEl && photoLatEl.value) formData.append('lat', photoLatEl.value);
-      if (photoLonEl && photoLonEl.value) formData.append('lon', photoLonEl.value);
-      if (photoStatus) photoStatus.textContent = 'Caricamento...';
-      fetch(`/api/days/${dayIdEl.value}/photos`, {
-        method: 'POST',
-        body: formData
-      })
-        .then((res) => res.json())
-        .then(() => {
-          if (photoStatus) photoStatus.textContent = 'Foto caricata.';
-          if (photoFileEl) photoFileEl.value = '';
-          clearPhotoDraft();
-          if (dayRouteIdEl.value) {
-            selectRoute(dayRouteIdEl.value, dayIdEl.value);
-          } else if (currentRouteId) {
-            selectRoute(currentRouteId, dayIdEl.value);
-          }
-        })
-        .catch(() => {
-          if (photoStatus) photoStatus.textContent = 'Errore nel caricamento.';
-        });
+      const files = photoFileEl && photoFileEl.files ? Array.from(photoFileEl.files) : [];
+      uploadPhotoFiles(files);
     });
   }
 
@@ -1129,7 +1157,14 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         body: formData
       })
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            return res.json().then((payload) => {
+              throw new Error(payload.error || 'Errore nel salvataggio.');
+            });
+          }
+          return res.json();
+        })
         .then((day) => {
           dayStatusEl.textContent = 'Giornata salvata.';
           if (day && day.route_id) {
@@ -1137,8 +1172,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           hideDayPanel();
         })
-        .catch(() => {
-          dayStatusEl.textContent = 'Errore nel salvataggio.';
+        .catch((err) => {
+          dayStatusEl.textContent = err.message || 'Errore nel salvataggio.';
         });
     });
   }

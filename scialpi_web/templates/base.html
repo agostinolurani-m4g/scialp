@@ -6,7 +6,7 @@
     <title>Backcountry Map</title>
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
     />
     <link
       href="{{ url_for('scialpi.static', filename='vendor/bootstrap/bootstrap.min.css') }}"
@@ -22,21 +22,33 @@
         --accent: #7fb2f0;
         --accent-strong: #5f98e6;
         --accent-soft: #e8f1ff;
+        --accent-blue: #7fb2f0;
+        --accent-blue-soft: #e8f1ff;
+        --accent-gradient: linear-gradient(120deg, #7fb2f0 0%, #7fb2f0 100%);
       }
       body {
         background: var(--bg);
         color: var(--text);
-        font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+        font-family: "Manrope", "Segoe UI", sans-serif;
         font-size: 0.95rem;
+      }
+      a {
+        color: var(--accent-blue);
+      }
+      a:hover {
+        color: var(--accent);
       }
       .navbar {
         background: var(--panel) !important;
         border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(8px);
       }
       .navbar-brand {
         font-weight: 700;
-        letter-spacing: 0.2px;
+        letter-spacing: 0.4px;
         color: var(--text) !important;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 1.05rem;
       }
       .nav-link {
         color: var(--muted) !important;
@@ -53,6 +65,10 @@
       h1, h2, h3 {
         font-weight: 700;
         color: var(--text);
+        font-family: "Space Grotesk", sans-serif;
+      }
+      .title-dynamic {
+        color: var(--text);
       }
       p {
         color: var(--muted);
@@ -60,7 +76,17 @@
       .panel-card {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 16px;
+      }
+      .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .section-title span {
+        font-size: 0.85rem;
+        color: var(--muted);
       }
       .form-control, .form-select, .form-check-input, .list-group-item {
         border-color: var(--border);
@@ -104,7 +130,6 @@
         color: var(--muted);
         font-size: 0.85rem;
       }
-
     </style>
     {% block extra_head %}{% endblock %}
   </head>
@@ -137,11 +162,14 @@
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('scialpi.community') }}">Community</a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('scialpi.people_page') }}">Persone</a>
+            </li>
           </ul>
           <ul class="navbar-nav ms-auto">
             {% if current_user %}
               <li class="nav-item">
-                <span class="nav-link">{{ current_user.name }}</span>
+                <a class="nav-link" href="{{ url_for('scialpi.profile_page') }}">{{ current_user.name }}</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('scialpi.logout') }}">Logout</a>

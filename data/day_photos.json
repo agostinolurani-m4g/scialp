@@ -7,5 +7,32 @@
     "lon": 7.547894,
     "owner_id": "00f3eff61f0c454e95a672e0535b8270",
     "created_at": "2025-12-30T08:50:22.464434Z"
+  },
+  {
+    "id": "e41eeb73aa0f44478b0f28ed02c5696a",
+    "day_id": "22122025-wwww-95b30923",
+    "filename": "3c85684783c349fd8b9e7b4afeaaf84a_Amaro_SecondoGiro_Benedetta-568.jpeg",
+    "lat": null,
+    "lon": null,
+    "owner_id": "00f3eff61f0c454e95a672e0535b8270",
+    "created_at": "2025-12-30T12:38:00.305808Z"
+  },
+  {
+    "id": "f36ede3600c44175af783408613e8312",
+    "day_id": "27122025-monte-rascias-55d5a57e",
+    "filename": "1da69b1665ac4722a671f81e3f8265de_Amaro_SecondoGiro_Benedetta-568.jpeg",
+    "lat": 45.609949,
+    "lon": 7.544406,
+    "owner_id": "00f3eff61f0c454e95a672e0535b8270",
+    "created_at": "2025-12-30T12:58:34.926678Z"
+  },
+  {
+    "id": "2f4cd0812e2949c886c7ca7add458ea7",
+    "day_id": "27122025-monte-rascias-55d5a57e",
+    "filename": "94de8ceb3bdc4bb088ec76b374d19b61_WhatsApp_Image_2023-03-19_at_21_edited.jpg",
+    "lat": 45.599398,
+    "lon": 7.531371,
+    "owner_id": "00f3eff61f0c454e95a672e0535b8270",
+    "created_at": "2025-12-30T13:01:16.278660Z"
   }
 ]

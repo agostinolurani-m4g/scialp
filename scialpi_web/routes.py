@@ -54,6 +54,8 @@ from scialpi.user_manager import (
     list_groups,
     list_groups_for_user,
     list_invites_for_user,
+    list_users,
+    set_user_photo,
     set_password,
 )
 from scialpi.day_media import add_day_photo, init_media_data, list_day_photos
@@ -133,6 +135,41 @@ def _parse_day_date(value: Optional[str]) -> Optional["date"]:
         except ValueError:
             return None
     return None
+
+
+def _build_day_cards(days: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not days:
+        return []
+    day_ids = [day.get("id") for day in days if day.get("id")]
+    photo_map: Dict[str, str] = {}
+    for photo in list_day_photos(day_ids):
+        day_id = photo.get("day_id")
+        if day_id and day_id not in photo_map:
+            photo_map[day_id] = photo.get("filename")
+    cards = []
+    for day in days:
+        route = get_route(day.get("route_id"))
+        if not route:
+            continue
+        photo_filename = photo_map.get(day.get("id"))
+        photo_url = (
+            url_for("scialpi.day_photo_file", filename=photo_filename)
+            if photo_filename
+            else None
+        )
+        cards.append(
+            {
+                "id": day.get("id"),
+                "date": day.get("date"),
+                "route_name": route.get("name"),
+                "difficulty": route.get("difficulty"),
+                "gain": route.get("gain"),
+                "distance_km": route.get("distance_km"),
+                "visibility": day.get("visibility") or "public",
+                "photo_url": photo_url,
+            }
+        )
+    return cards
 
 
 def _parse_route_filters(args) -> Dict[str, Any]:
@@ -466,6 +503,113 @@ def activities_page() -> str:
     return render_template("activities.html")
 
 
+@bp.route("/profile")
+@_login_required
+def profile_page() -> str:
+    user = _current_user()
+    days = [day for day in list_days() if day.get("owner_id") == user.get("id")]
+    days.sort(key=lambda item: item.get("date", ""), reverse=True)
+    public_days = [day for day in days if _is_day_visible(day, None)]
+    photo_filename = user.get("photo_filename") if user else None
+    photo_url = (
+        url_for("scialpi.user_photo_file", filename=photo_filename)
+        if photo_filename
+        else None
+    )
+    return render_template(
+        "profile.html",
+        user=user,
+        user_photo_url=photo_url,
+        my_days=_build_day_cards(days),
+        public_days=_build_day_cards(public_days),
+    )
+
+
+@bp.route("/profile/photo", methods=["POST"])
+@_login_required
+def profile_photo_upload() -> Any:
+    user = _current_user()
+    image = request.files.get("photo")
+    if not image or not image.filename:
+        return redirect(url_for("scialpi.profile_page"))
+    base_dir = get_base_dir()
+    upload_dir = base_dir / "user_photos"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = secure_filename(image.filename)
+    filename = f"{uuid4().hex}_{safe_name}"
+    image.save(upload_dir / filename)
+    set_user_photo(user.get("id"), filename)
+    return redirect(url_for("scialpi.profile_page"))
+
+
+@bp.route("/users/photos/<path:filename>")
+def user_photo_file(filename: str):
+    base_dir = get_base_dir()
+    upload_dir = base_dir / "user_photos"
+    return send_from_directory(upload_dir, filename)
+
+
+@bp.route("/people")
+def people_page() -> str:
+    query = (request.args.get("q") or "").strip().lower()
+    user = _current_user()
+    results = []
+    for entry in list_users():
+        if user and entry.get("id") == user.get("id"):
+            continue
+        name = entry.get("name") or ""
+        email = entry.get("email") or ""
+        if query and query not in name.lower() and query not in email.lower():
+            continue
+        photo_filename = entry.get("photo_filename")
+        photo_url = (
+            url_for("scialpi.user_photo_file", filename=photo_filename)
+            if photo_filename
+            else None
+        )
+        results.append(
+            {
+                "id": entry.get("id"),
+                "name": name,
+                "is_guide": entry.get("is_guide"),
+                "cai_courses": entry.get("cai_courses"),
+                "score": entry.get("score"),
+                "photo_url": photo_url,
+            }
+        )
+    results.sort(key=lambda item: item.get("name", "").lower())
+    return render_template("people.html", query=query, results=results)
+
+
+@bp.route("/people/<user_id>")
+def people_profile(user_id: str) -> str:
+    person = get_user(user_id)
+    if not person:
+        abort(404)
+    view_mode = (request.args.get("view") or "").lower()
+    viewer = None if view_mode == "public" else _current_user()
+    days = [
+        day
+        for day in list_days()
+        if day.get("owner_id") == user_id and _is_day_visible(day, viewer)
+    ]
+    days.sort(key=lambda item: item.get("date", ""), reverse=True)
+    photo_filename = person.get("photo_filename")
+    photo_url = (
+        url_for("scialpi.user_photo_file", filename=photo_filename)
+        if photo_filename
+        else None
+    )
+    return render_template(
+        "user_profile.html",
+        person=person,
+        person_photo_url=photo_url,
+        day_cards=_build_day_cards(days),
+        is_friend=bool(viewer and is_friend(viewer.get("id"), user_id)),
+        public_preview=view_mode == "public",
+    )
+
+
 @bp.route("/activities/<day_id>")
 def activity_detail(day_id: str) -> str:
     day = get_day(day_id)
@@ -473,6 +617,12 @@ def activity_detail(day_id: str) -> str:
         abort(404)
     if not _is_day_visible(day, _current_user()):
         abort(403)
+    people_emails = []
+    for person_id in day.get("people_ids") or []:
+        person = get_user(person_id)
+        if person and person.get("email"):
+            people_emails.append(person.get("email"))
+    day["people_emails"] = people_emails
     route = get_route(day.get("route_id"))
     photos = list_day_photos([day_id])
     posts = list_posts(day_id)
@@ -914,18 +1064,34 @@ def days_api() -> Any:
     if not user:
         return jsonify({"error": "Login richiesto"}), 401
     day_id = data.get("day_id") or None
+    existing_day = get_day(day_id) if day_id else None
+    if day_id and not existing_day:
+        return jsonify({"error": "Giornata non trovata"}), 404
+    if existing_day and existing_day.get("owner_id") and existing_day.get("owner_id") != user.get("id"):
+        return jsonify({"error": "Non autorizzato"}), 403
     route_id = data.get("route_id") or None
     date = data.get("date") or None
+    if not route_id and existing_day:
+        route_id = existing_day.get("route_id")
+    if not date and existing_day:
+        date = existing_day.get("date")
     if not route_id or not date:
         return jsonify({"error": "Percorso e data sono obbligatori"}), 400
-    visibility = data.get("visibility") or "public"
-    group_ids = _parse_csv_ids(data.get("group_ids"))
-    people_raw = _parse_csv_ids(data.get("people_emails"))
+    visibility = data.get("visibility") if "visibility" in data else None
+    if visibility in ("", None):
+        visibility = existing_day.get("visibility") if existing_day else "public"
+    raw_group_ids = data.get("group_ids") if "group_ids" in data else None
+    group_ids = _parse_csv_ids(raw_group_ids) if raw_group_ids is not None else (existing_day.get("group_ids") or [] if existing_day else [])
+    people_raw = data.get("people_emails") if "people_emails" in data else None
+    people_emails = _parse_csv_ids(people_raw) if people_raw is not None else (existing_day.get("people_ids") or [] if existing_day else [])
     people_ids = []
-    for email in people_raw:
-        person = get_user_by_email(email)
-        if person:
-            people_ids.append(person.get("id"))
+    if people_raw is None and existing_day:
+        people_ids = existing_day.get("people_ids") or []
+    else:
+        for email in people_emails:
+            person = get_user_by_email(email)
+            if person:
+                people_ids.append(person.get("id"))
     activity_stats = None
     activity_gpx = request.files.get("activity_gpx")
     if activity_gpx and activity_gpx.filename:
@@ -936,10 +1102,10 @@ def days_api() -> Any:
     day = upsert_day(
         route_id=route_id,
         date=date,
-        snow_quality=data.get("snow_quality") or None,
-        description=data.get("day_description") or None,
-        weather=data.get("weather") or None,
-        avalanches_seen=data.get("avalanches_seen") or None,
+        snow_quality=data.get("snow_quality") if "snow_quality" in data else existing_day.get("snow_quality") if existing_day else None,
+        description=data.get("day_description") if "day_description" in data else existing_day.get("description") if existing_day else None,
+        weather=data.get("weather") if "weather" in data else existing_day.get("weather") if existing_day else None,
+        avalanches_seen=data.get("avalanches_seen") if "avalanches_seen" in data else existing_day.get("avalanches_seen") if existing_day else None,
         visibility=visibility,
         group_ids=group_ids,
         people_ids=people_ids,
@@ -1090,8 +1256,23 @@ def day_photos_api(day_id: str) -> Any:
     day = get_day(day_id)
     if not day:
         return jsonify({"error": "Giornata non trovata"}), 404
-    if day.get("owner_id") != user.get("id"):
+    if day.get("owner_id") and day.get("owner_id") != user.get("id"):
         return jsonify({"error": "Non autorizzato"}), 403
+    if not day.get("owner_id"):
+        upsert_day(
+            route_id=day.get("route_id"),
+            date=day.get("date"),
+            snow_quality=day.get("snow_quality"),
+            description=day.get("description"),
+            weather=day.get("weather"),
+            avalanches_seen=day.get("avalanches_seen"),
+            visibility=day.get("visibility") or "public",
+            group_ids=day.get("group_ids") or [],
+            people_ids=day.get("people_ids") or [],
+            owner_id=user.get("id"),
+            day_id=day_id,
+        )
+        day = get_day(day_id) or day
     image = request.files.get("image")
     if not image or not image.filename:
         return jsonify({"error": "Immagine mancante"}), 400

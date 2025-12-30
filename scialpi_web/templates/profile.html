@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <style>
+    .profile-hero { display: grid; gap: 16px; grid-template-columns: 1fr; margin-bottom: 20px; }
+    .profile-card { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .avatar-shell {
+      width: 120px;
+      height: 120px;
+      border-radius: 26px;
+      overflow: hidden;
+      background: linear-gradient(140deg, rgba(255, 62, 165, 0.25), rgba(52, 179, 255, 0.2));
+      border: 2px solid rgba(255, 62, 165, 0.35);
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1.8rem;
+    }
+    .avatar-shell img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-meta { display: grid; gap: 6px; min-width: 220px; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      background: rgba(52, 179, 255, 0.15);
+      color: var(--text);
+      border: 1px solid rgba(52, 179, 255, 0.3);
+    }
+    .profile-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .section-title span { font-size: 0.85rem; color: var(--muted); }
+    .day-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .day-carousel { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+    .day-carousel::-webkit-scrollbar { height: 6px; }
+    .day-carousel::-webkit-scrollbar-thumb { background: rgba(255, 62, 165, 0.4); border-radius: 999px; }
+    .day-card { min-width: 220px; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; scroll-snap-align: start; }
+    .day-photo { height: 140px; background: rgba(52, 179, 255, 0.15); display: grid; place-items: center; color: var(--muted); font-size: 0.8rem; }
+    .day-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .day-body { padding: 12px; display: grid; gap: 6px; }
+    .day-title { font-weight: 600; font-size: 1rem; }
+    .day-meta { font-size: 0.8rem; color: var(--muted); }
+    .day-meta strong { color: var(--text); font-weight: 600; }
+    .day-link { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-blue); font-weight: 600; }
+    .empty-state { color: var(--muted); font-size: 0.9rem; padding: 12px; border: 1px dashed var(--border); border-radius: 14px; }
+    @media (min-width: 992px) {
+      .profile-hero { grid-template-columns: 2fr 1fr; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="profile-hero">
+    <div class="panel-card p-3">
+      <div class="section-title">
+        <h1 class="title-dynamic mb-0">Area personale</h1>
+        <span>Profilo e gite</span>
+      </div>
+      <div class="profile-card">
+        <div class="avatar-shell">
+          {% if user_photo_url %}
+            <img src="{{ user_photo_url }}" alt="Foto profilo" />
+          {% else %}
+            {{ user.name[:1].upper() }}
+          {% endif %}
+        </div>
+        <div class="profile-meta">
+          <div class="h4 mb-0">{{ user.name }}</div>
+          <div class="text-muted">{{ user.email }}</div>
+          <div class="tag-row">
+            <span class="tag-pill">Score {{ user.score }}</span>
+            {% if user.is_guide %}
+              <span class="tag-pill">Guida</span>
+            {% endif %}
+            {% if user.cai_courses %}
+              <span class="tag-pill">CAI: {{ user.cai_courses }}</span>
+            {% endif %}
+          </div>
+          <div class="profile-actions">
+            <form method="post" action="{{ url_for('scialpi.profile_photo_upload') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+              <input type="file" class="form-control form-control-sm" name="photo" accept="image/*" />
+              <button class="btn btn-primary btn-sm" type="submit">Aggiorna foto</button>
+            </form>
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('scialpi.people_profile', user_id=user.id, view='public') }}">Vedi profilo pubblico</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-card p-3">
+      <div class="section-title">
+        <h2 class="h5 mb-0">Come ti vedono gli altri</h2>
+      </div>
+      {% if public_days %}
+        <div class="day-carousel">
+          {% for day in public_days %}
+            <div class="day-card">
+              <div class="day-photo">
+                {% if day.photo_url %}
+                  <img src="{{ day.photo_url }}" alt="Foto gita" />
+                {% else %}
+                  Foto non disponibile
+                {% endif %}
+              </div>
+              <div class="day-body">
+                <div class="day-title">{{ day.route_name }}</div>
+                <div class="day-meta">{{ day.date }} · {{ day.difficulty or 'Difficolta n/d' }}</div>
+                <div class="day-meta">
+                  <strong>{{ day.gain or '-' }}</strong> m · <strong>{{ day.distance_km or '-' }}</strong> km
+                </div>
+                <a class="day-link" href="{{ url_for('scialpi.activity_detail', day_id=day.id) }}">Apri</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">Non hai gite pubbliche visibili.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel-card p-3">
+    <div class="section-title">
+      <h2 class="h5 mb-0">Le mie gite</h2>
+      <span>Gestisci e rivedi tutto</span>
+    </div>
+    {% if my_days %}
+      <div class="day-grid">
+        {% for day in my_days %}
+          <div class="day-card">
+            <div class="day-photo">
+              {% if day.photo_url %}
+                <img src="{{ day.photo_url }}" alt="Foto gita" />
+              {% else %}
+                Foto non disponibile
+              {% endif %}
+            </div>
+            <div class="day-body">
+              <div class="day-title">{{ day.route_name }}</div>
+              <div class="day-meta">{{ day.date }} · {{ day.difficulty or 'Difficolta n/d' }}</div>
+              <div class="day-meta">
+                <strong>{{ day.gain or '-' }}</strong> m · <strong>{{ day.distance_km or '-' }}</strong> km
+              </div>
+              <div class="tag-row">
+                <span class="tag-pill">{{ day.visibility }}</span>
+              </div>
+              <a class="day-link" href="{{ url_for('scialpi.activity_detail', day_id=day.id) }}">Apri</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">Non hai ancora creato giornate.</div>
+    {% endif %}
+  </div>
+{% endblock %}

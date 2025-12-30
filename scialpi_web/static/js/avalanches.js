@@ -1,6 +1,6 @@
 ﻿// Javascript per la mappa delle valanghe
 document.addEventListener('DOMContentLoaded', () => {
-  const map = L.map('map').setView([46.0, 11.0], 6); // centro approssimativo sulle Alpi
+  const map = L.map('avalanche-map').setView([46.0, 11.0], 6); // centro approssimativo sulle Alpi
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'Ac OpenStreetMap contributors'
   }).addTo(map);
@@ -9,6 +9,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusEl = document.getElementById('avalanche-status');
   const latEl = document.getElementById('lat');
   const lonEl = document.getElementById('lon');
+  const startDateEl = document.getElementById('start-date');
+  const endDateEl = document.getElementById('end-date');
+  const rangeOneDayBtn = document.getElementById('range-1-day');
+  const rangeThreeDaysBtn = document.getElementById('range-3-days');
+  const historyBtn = document.getElementById('view-history');
+  const historyTopBtn = document.getElementById('view-history-top');
+  const historyNote = document.getElementById('history-note');
+
+  function formatDate(value) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function setRange(days) {
+    const today = new Date();
+    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startDate = new Date(endDate);
+    const safeDays = Math.max(days - 1, 0);
+    startDate.setDate(startDate.getDate() - safeDays);
+    if (startDateEl) startDateEl.value = formatDate(startDate);
+    if (endDateEl) endDateEl.value = formatDate(endDate);
+  }
 
   function markerColor(size) {
     switch (size) {
@@ -39,8 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadAvalanches() {
     const params = new URLSearchParams();
-    const startDateEl = document.getElementById('start-date');
-    const endDateEl = document.getElementById('end-date');
     const startVal = startDateEl && startDateEl.value;
     const endVal = endDateEl && endDateEl.value;
     if (startVal) {
@@ -99,6 +121,40 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAvalanches();
   });
 
+  if (rangeOneDayBtn) {
+    rangeOneDayBtn.addEventListener('click', () => {
+      setRange(1);
+      loadAvalanches();
+    });
+  }
+
+  if (rangeThreeDaysBtn) {
+    rangeThreeDaysBtn.addEventListener('click', () => {
+      setRange(3);
+      loadAvalanches();
+    });
+  }
+
+  function showHistoryNote() {
+    if (historyNote) {
+      historyNote.textContent = 'Heatmap storico in arrivo.';
+    }
+  }
+
+  if (historyBtn) {
+    historyBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showHistoryNote();
+    });
+  }
+
+  if (historyTopBtn) {
+    historyTopBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showHistoryNote();
+    });
+  }
+
   map.on('click', (e) => {
     const lat = e.latlng.lat.toFixed(6);
     const lon = e.latlng.lng.toFixed(6);
@@ -132,5 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Carica le segnalazioni all'avvio
+  setRange(3);
   loadAvalanches();
 });

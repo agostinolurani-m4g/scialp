@@ -8,18 +8,18 @@
   <style>
     .activity-hero { margin-bottom: 16px; }
     .activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-    .activity-grid img { width: 100%; border-radius: 12px; border: 1px solid #dbe7f5; }
-    .activity-map { height: 320px; border-radius: 12px; overflow: hidden; border: 1px solid #dbe7f5; }
-    .activity-meta { font-size: 0.9rem; color: #6b7a90; }
+    .activity-grid img { width: 100%; border-radius: 12px; border: 1px solid var(--border); }
+    .activity-map { height: 320px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .activity-meta { font-size: 0.9rem; color: var(--muted); }
     .panel-compact { padding: 12px; }
-    .post-card { border: 1px solid #dbe7f5; border-radius: 12px; padding: 12px; background: #ffffff; }
-    .comment { font-size: 0.85rem; color: #5c6b82; }
+    .post-card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--panel); }
+    .comment { font-size: 0.85rem; color: var(--muted); }
   </style>
 {% endblock %}
 
 {% block content %}
   <div class="activity-hero">
-    <h1>{{ route.name if route else 'Attivita' }}</h1>
+    <h1 class="title-dynamic">{{ route.name if route else 'Attivita' }}</h1>
     <div class="activity-meta">{{ day.date }} · {{ route.difficulty if route and route.difficulty else 'Difficolta n/d' }}</div>
   </div>
   <div class="row g-4">
@@ -47,6 +47,83 @@
     </div>
 
     <div class="col-lg-5">
+      {% if current_user and (not day.owner_id or day.owner_id == current_user.id) %}
+      <div class="panel-card panel-compact mb-3" id="activity-edit">
+        <div class="panel-title">Modifica giornata</div>
+        <form class="row g-2" id="activity-edit-form" enctype="multipart/form-data">
+          <input type="hidden" name="day_id" value="{{ day.id }}" />
+          <input type="hidden" name="route_id" value="{{ day.route_id }}" />
+          <div class="col-12">
+            <label for="edit-date" class="form-label">Data (ddmmyyyy)</label>
+            <input type="text" class="form-control" id="edit-date" name="date" value="{{ day.date }}" required />
+          </div>
+          <div class="col-12">
+            <label for="edit-visibility" class="form-label">Visibilita</label>
+            {% set visibility = day.visibility or 'public' %}
+            <select class="form-select" id="edit-visibility" name="visibility">
+              <option value="public" {% if visibility == 'public' %}selected{% endif %}>Pubblica</option>
+              <option value="groups" {% if visibility == 'groups' %}selected{% endif %}>Gruppi</option>
+              <option value="friends" {% if visibility == 'friends' %}selected{% endif %}>Amici</option>
+              <option value="people" {% if visibility == 'people' %}selected{% endif %}>Persone</option>
+              <option value="private" {% if visibility == 'private' %}selected{% endif %}>Solo io</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Gruppi</label>
+            <div id="activity-group-list" class="list-group"></div>
+            <input type="hidden" id="activity-group-ids" name="group_ids" />
+          </div>
+          <div class="col-12">
+            <label for="edit-people" class="form-label">Persone (email, separate da virgola)</label>
+            <input type="text" class="form-control" id="edit-people" name="people_emails" value="{{ day.people_emails|join(', ') if day.people_emails else '' }}" />
+          </div>
+          <div class="col-12">
+            <label for="edit-snow" class="form-label">Qualita neve</label>
+            <input type="text" class="form-control" id="edit-snow" name="snow_quality" value="{{ day.snow_quality or '' }}" />
+          </div>
+          <div class="col-12">
+            <label for="edit-description" class="form-label">Descrizione</label>
+            <textarea class="form-control" id="edit-description" name="day_description" rows="2">{{ day.description or '' }}</textarea>
+          </div>
+          <div class="col-12">
+            <label for="edit-weather" class="form-label">Meteo</label>
+            <input type="text" class="form-control" id="edit-weather" name="weather" value="{{ day.weather or '' }}" />
+          </div>
+          <div class="col-12">
+            <label for="edit-avalanches" class="form-label">Valanghe viste</label>
+            <input type="text" class="form-control" id="edit-avalanches" name="avalanches_seen" value="{{ day.avalanches_seen or '' }}" />
+          </div>
+          <div class="col-12">
+            <label for="edit-activity-gpx" class="form-label">GPX attivita (performance)</label>
+            <input type="file" class="form-control" id="edit-activity-gpx" name="activity_gpx" accept=".gpx" />
+          </div>
+          <div class="col-12">
+            <div class="panel-title">Foto giornata</div>
+            <div class="text-muted small mb-2">Clicca sulla mappa per impostare la posizione, oppure inseriscila a mano.</div>
+            <div class="row g-2">
+              <div class="col-12">
+                <input type="file" class="form-control" id="edit-photo-file" accept="image/*" multiple />
+              </div>
+              <div class="col-6">
+                <input type="text" class="form-control" id="edit-photo-lat" placeholder="Lat (opzionale)" />
+              </div>
+              <div class="col-6">
+                <input type="text" class="form-control" id="edit-photo-lon" placeholder="Lon (opzionale)" />
+              </div>
+              <div class="col-12">
+                <button type="button" class="btn btn-outline-primary w-100" id="edit-photo-upload">Carica foto</button>
+                <span class="ms-2 text-muted" id="edit-photo-status"></span>
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100">Salva modifiche</button>
+            <span class="ms-2 text-muted" id="activity-edit-status"></span>
+          </div>
+        </form>
+      </div>
+      {% endif %}
+
       <div class="panel-card panel-compact mb-3">
         <div class="panel-title">Dettagli</div>
         <div class="detail-item"><span class="detail-label">Dislivello:</span> {{ route.gain if route and route.gain else '-' }} m</div>
@@ -214,7 +291,158 @@
       const latLngs = track.map((p) => [p[0], p[1]]);
       L.polyline(latLngs, { color: '#7fb2f0', weight: 4 }).addTo(map);
       map.fitBounds(L.latLngBounds(latLngs), { padding: [30, 30] });
+      const photoLatInput = document.getElementById('edit-photo-lat');
+      const photoLonInput = document.getElementById('edit-photo-lon');
+      if (photoLatInput && photoLonInput) {
+        map.on('click', (event) => {
+          photoLatInput.value = event.latlng.lat.toFixed(6);
+          photoLonInput.value = event.latlng.lng.toFixed(6);
+        });
+      }
     }
+  </script>
+  {% endif %}
+  {% if current_user and (not day.owner_id or day.owner_id == current_user.id) %}
+  <script>
+    const editForm = document.getElementById('activity-edit-form');
+    const groupList = document.getElementById('activity-group-list');
+    const groupIdsInput = document.getElementById('activity-group-ids');
+    const editStatus = document.getElementById('activity-edit-status');
+    const photoButton = document.getElementById('edit-photo-upload');
+    const photoFile = document.getElementById('edit-photo-file');
+    const photoLat = document.getElementById('edit-photo-lat');
+    const photoLon = document.getElementById('edit-photo-lon');
+    const photoStatus = document.getElementById('edit-photo-status');
+    const initialGroupIds = {{ (day.group_ids or []) | tojson }};
+
+    function updateGroupSelection() {
+      if (!groupList || !groupIdsInput) return;
+      const selected = [];
+      groupList.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        if (checkbox.checked) selected.push(checkbox.value);
+      });
+      groupIdsInput.value = selected.join(',');
+    }
+
+    function renderGroups(groups) {
+      if (!groupList) return;
+      groupList.innerHTML = '';
+      if (!groups.length) {
+        groupList.innerHTML = '<div class="list-group-item">Nessun gruppo.</div>';
+        updateGroupSelection();
+        return;
+      }
+      const selected = new Set(initialGroupIds || []);
+      groups.forEach((group) => {
+        const item = document.createElement('label');
+        item.className = 'list-group-item d-flex align-items-center gap-2';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'form-check-input';
+        checkbox.value = group.id;
+        checkbox.checked = selected.has(group.id);
+        checkbox.addEventListener('change', updateGroupSelection);
+        const text = document.createElement('span');
+        text.textContent = group.name || 'Gruppo';
+        item.appendChild(checkbox);
+        item.appendChild(text);
+        groupList.appendChild(item);
+      });
+      updateGroupSelection();
+    }
+
+    function loadGroups() {
+      fetch('/api/groups')
+        .then((res) => res.json())
+        .then((groups) => {
+          if (!Array.isArray(groups)) return;
+          renderGroups(groups);
+        })
+        .catch(() => {
+          if (groupList) {
+            groupList.innerHTML = '<div class="list-group-item">Errore nel caricamento.</div>';
+          }
+        });
+    }
+
+    if (editForm) {
+      editForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        updateGroupSelection();
+        if (editStatus) editStatus.textContent = 'Salvataggio...';
+        const formData = new FormData(editForm);
+        fetch('/api/days', { method: 'POST', body: formData })
+          .then((res) => {
+            if (!res.ok) {
+              return res.json().then((payload) => {
+                throw new Error(payload.error || 'Errore nel salvataggio.');
+              });
+            }
+            return res.json();
+          })
+          .then(() => {
+            if (editStatus) editStatus.textContent = 'Giornata aggiornata.';
+            window.location.reload();
+          })
+          .catch((err) => {
+            if (editStatus) editStatus.textContent = err.message || 'Errore nel salvataggio.';
+          });
+      });
+    }
+
+    if (photoButton) {
+      photoButton.addEventListener('click', () => {
+        const files = photoFile && photoFile.files ? Array.from(photoFile.files) : [];
+        if (!files.length) {
+          if (photoStatus) photoStatus.textContent = 'Seleziona una foto.';
+          return;
+        }
+        if (!photoLat || !photoLon || !photoLat.value || !photoLon.value) {
+          if (photoStatus) photoStatus.textContent = 'Seleziona la posizione sulla mappa.';
+          return;
+        }
+        const total = files.length;
+        let index = 0;
+        const uploadNext = () => {
+          const file = files[index];
+          const formData = new FormData();
+          formData.append('image', file);
+          if (photoLat && photoLat.value) formData.append('lat', photoLat.value);
+          if (photoLon && photoLon.value) formData.append('lon', photoLon.value);
+          if (photoStatus) photoStatus.textContent = `Caricamento ${index + 1}/${total}...`;
+          return fetch(`/api/days/{{ day.id }}/photos`, {
+            method: 'POST',
+            body: formData
+          })
+            .then((res) => {
+              if (!res.ok) {
+                return res.json().then((payload) => {
+                  throw new Error(payload.error || 'Errore nel caricamento.');
+                });
+              }
+              return res.json();
+            })
+            .then(() => {
+              index += 1;
+              if (index < total) {
+                return uploadNext();
+              }
+              return null;
+            });
+        };
+        uploadNext()
+          .then(() => {
+            if (photoStatus) photoStatus.textContent = 'Foto caricate.';
+            if (photoFile) photoFile.value = '';
+            window.location.reload();
+          })
+          .catch((err) => {
+            if (photoStatus) photoStatus.textContent = err.message || 'Errore nel caricamento.';
+          });
+      });
+    }
+
+    loadGroups();
   </script>
   {% endif %}
 {% endblock %}

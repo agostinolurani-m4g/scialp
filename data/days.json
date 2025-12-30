@@ -32,5 +32,26 @@
     "activity_vam": null,
     "activity_up_hours": null,
     "activity_down_hours": null
+  },
+  {
+    "id": "22122025-wwww-95b30923",
+    "route_id": "wwww-95b30923",
+    "date": "22122025",
+    "snow_quality": "pesante",
+    "description": "Bella gita, gran caldo, strato debole presente alla base (40-50 cm)",
+    "weather": "Sole",
+    "avalanches_seen": "parecchie a lastroni su interi pendii esposti a ovest",
+    "visibility": "public",
+    "group_ids": [],
+    "people_ids": [],
+    "owner_id": "00f3eff61f0c454e95a672e0535b8270",
+    "activity_distance_km": null,
+    "activity_gain_m": null,
+    "activity_loss_m": null,
+    "activity_duration_h": null,
+    "activity_pace_min_km": null,
+    "activity_vam": null,
+    "activity_up_hours": null,
+    "activity_down_hours": null
   }
 ]

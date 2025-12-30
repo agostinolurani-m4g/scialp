@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <h1>Community</h1>
+  <h1 class="title-dynamic">Community</h1>
   <p>Qui trovi gruppi, inviti e amici. La logica avanzata verra aggiunta piu avanti.</p>
   {% if current_user %}
     <div class="text-muted mb-3">Score collaborazione: {{ current_user.score }}</div>

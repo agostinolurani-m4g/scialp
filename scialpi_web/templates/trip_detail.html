@@ -6,12 +6,12 @@
     href="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.css') }}"
   />
   <style>
-    #trip-map { height: 420px; width: 100%; }
+    #trip-map { height: 420px; width: 100%; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
   </style>
 {% endblock %}
 
 {% block content %}
-  <h1>{{ trip.name }}</h1>
+  <h1 class="title-dynamic">{{ trip.name }}</h1>
   <dl class="row">
     <dt class="col-sm-3">Descrizione</dt><dd class="col-sm-9">{{ trip.description or '-' }}</dd>
     {% if trip.difficulty %}

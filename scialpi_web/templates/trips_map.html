@@ -8,42 +8,38 @@
   <style>
     #trips-map { height: 100%; width: 100%; border-radius: 12px; overflow: hidden; }
     .search-results { max-height: 220px; overflow-y: auto; }
-    .panel-card { background: #ffffff; border: 1px solid #dbe7f5; border-radius: 10px; padding: 16px; }
+    .panel-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
     .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
     .detail-item { font-size: 0.85rem; margin-bottom: 4px; }
     .detail-label { font-weight: 600; }
     .panel-compact { padding: 12px; }
-    .panel-compact .form-label { font-size: 0.82rem; color: #5b6b7f; margin-bottom: 4px; }
+    .panel-compact .form-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; }
     .panel-compact .form-control,
     .panel-compact .form-select { font-size: 0.85rem; padding: 6px 10px; }
     .panel-compact .list-group-item { font-size: 0.85rem; padding: 6px 10px; }
     .filter-toggle { display: flex; align-items: center; justify-content: space-between; }
-    .filter-panel { border: 1px solid #cfe0f3; background: #f3f8ff; }
+    .filter-panel { border: 1px solid var(--border); background: var(--accent-blue-soft); }
     .map-page h1 { font-size: 1.4rem; margin-bottom: 4px; }
     .map-page p { font-size: 0.9rem; margin-bottom: 12px; }
-    .map-layout { min-height: 640px; height: calc(100vh - 190px); }
-    .side-scroll { height: 100%; overflow-y: auto; padding-right: 6px; }
+    .map-layout { min-height: 640px; }
+    .side-scroll { padding-right: 6px; }
     .side-stack { display: flex; flex-direction: column; gap: 12px; }
     .side-scroll::-webkit-scrollbar { width: 6px; }
-    .side-scroll::-webkit-scrollbar-thumb { background: #cfe0f3; border-radius: 6px; }
-    .profile-canvas { width: 100%; height: 90px; border: 1px solid #e1e4e8; border-radius: 6px; background: #fff; }
+    .side-scroll::-webkit-scrollbar-thumb { background: rgba(52, 179, 255, 0.4); border-radius: 6px; }
+    .profile-canvas { width: 100%; height: 90px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
     .slope-legend span { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 0.8rem; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     .legend-line { width: 18px; height: 2px; border-radius: 2px; display: inline-block; }
-    .photo-thumb { border: 1px solid #dbe7f5; border-radius: 8px; padding: 6px; background: #f8fbff; }
+    .photo-thumb { border: 1px solid var(--border); border-radius: 10px; padding: 6px; background: var(--accent-blue-soft); }
     .photo-thumb img { width: 100%; border-radius: 6px; }
-    .map-column { display: flex; flex-direction: column; height: 100%; gap: 10px; }
+    .map-column { display: flex; flex-direction: column; gap: 10px; }
     .map-toolbar { display: flex; align-items: center; justify-content: space-between; }
     .map-toolbar .btn-group .btn { font-size: 0.82rem; padding: 4px 10px; }
-    .map-view { flex: 1; min-height: 0; }
-    .map-list { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid #dbe7f5; border-radius: 12px; background: #ffffff; padding: 10px; }
-    .map-list .list-group-item { border: 0; border-bottom: 1px solid #eef3fb; padding: 10px; }
+    .map-view { flex: 1; min-height: 520px; }
+    .map-list { flex: 1; min-height: 520px; overflow-y: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); padding: 10px; }
+    .map-list .list-group-item { border: 0; border-bottom: 1px solid var(--border); padding: 10px; }
     .map-list .list-group-item:last-child { border-bottom: 0; }
-    .map-footer-line { height: 1px; background: #dbe7f5; border-radius: 2px; }
-    @media (min-width: 992px) {
-      .map-page { height: calc(100vh - 140px); overflow: hidden; }
-      .map-layout { height: 100%; }
-    }
+    .map-footer-line { height: 1px; background: var(--border); border-radius: 2px; }
     .trip-triangle {
       width: 0;
       height: 0;
@@ -51,7 +47,7 @@
       border: none;
       border-left: 8px solid transparent;
       border-right: 8px solid transparent;
-      border-bottom: 14px solid #7fb2f0;
+      border-bottom: 14px solid var(--accent-blue);
       transform: translate(-8px, -12px);
     }
   </style>
@@ -59,7 +55,7 @@
 
 {% block content %}
   <div class="map-page">
-    <h1>Backcountry Map</h1>
+    <h1 class="title-dynamic">Backcountry Map</h1>
     <p>Cerca una montagna o un posto, poi crea un percorso e aggiungi le giornate.</p>
     <div class="row g-3 map-layout">
       <div class="col-lg-3 h-100">
@@ -70,7 +66,7 @@
                 <div class="panel-title mb-0">Filtri gite</div>
                 <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filters-collapse" aria-expanded="false" aria-controls="filters-collapse">
                   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M3 5h18M6 12h12M10 19h4" stroke="#2f7fdc" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <path d="M3 5h18M6 12h12M10 19h4" stroke="var(--accent-blue)" stroke-width="2" fill="none" stroke-linecap="round"/>
                   </svg>
                 </button>
               </div>
@@ -284,7 +280,7 @@
               <button type="button" class="btn btn-outline-secondary w-100" id="photo-clear">Pulisci</button>
             </div>
             <div class="mt-2">
-              <input type="file" class="form-control" id="photo-file" accept="image/*" />
+              <input type="file" class="form-control" id="photo-file" accept="image/*" multiple />
             </div>
             <div class="row g-2 mt-1">
               <div class="col-6">
