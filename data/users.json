@@ -1,0 +1,12 @@
+[
+  {
+    "id": "00f3eff61f0c454e95a672e0535b8270",
+    "name": "agostino lurani",
+    "email": "agostino.lurani@gmail.com",
+    "password_hash": "scrypt:32768:8:1$hyBki78HQqX2Yimn$d5eccf7392e12c99c6e76ff20eb7f5e4c42bba8876f6e7468f006a4cb6bc2c5eea329f3434b14302c464140fd60b42a22580caa4bbc78606ee9816978b2923bb",
+    "is_guide": false,
+    "cai_courses": "sa1",
+    "score": 0,
+    "created_at": "2025-12-29T23:01:38.898481Z"
+  }
+]

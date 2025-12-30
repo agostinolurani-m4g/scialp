@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <link
+    rel="stylesheet"
+    href="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.css') }}"
+  />
+  <style>
+    #trip-map { height: 420px; width: 100%; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <h1>{{ trip.name }}</h1>
+  <dl class="row">
+    <dt class="col-sm-3">Descrizione</dt><dd class="col-sm-9">{{ trip.description or '-' }}</dd>
+    {% if trip.difficulty %}
+    <dt class="col-sm-3">Difficolta</dt><dd class="col-sm-9">{{ trip.difficulty }}</dd>
+    {% endif %}
+    {% if trip.gain %}
+    <dt class="col-sm-3">Dislivello</dt><dd class="col-sm-9">{{ trip.gain }} m</dd>
+    {% endif %}
+    {% if trip.distance_km %}
+    <dt class="col-sm-3">Distanza</dt><dd class="col-sm-9">{{ trip.distance_km }} km</dd>
+    {% endif %}
+    {% if trip.estimate_hours %}
+    <dt class="col-sm-3">Stima salita</dt><dd class="col-sm-9">{{ "%.2f"|format(trip.estimate_hours) }} h</dd>
+    {% endif %}
+  </dl>
+
+  <h2>Giornata</h2>
+  <dl class="row">
+    <dt class="col-sm-3">Data</dt><dd class="col-sm-9">{{ trip.date }}</dd>
+    {% if trip.snow_quality %}
+    <dt class="col-sm-3">Qualita neve</dt><dd class="col-sm-9">{{ trip.snow_quality }}</dd>
+    {% endif %}
+    {% if trip.day_description %}
+    <dt class="col-sm-3">Descrizione</dt><dd class="col-sm-9">{{ trip.day_description }}</dd>
+    {% endif %}
+    {% if trip.weather %}
+    <dt class="col-sm-3">Meteo</dt><dd class="col-sm-9">{{ trip.weather }}</dd>
+    {% endif %}
+    {% if trip.avalanches_seen %}
+    <dt class="col-sm-3">Valanghe viste</dt><dd class="col-sm-9">{{ trip.avalanches_seen }}</dd>
+    {% endif %}
+    {% if trip.activity_distance_km %}
+    <dt class="col-sm-3">Distanza attivita</dt><dd class="col-sm-9">{{ trip.activity_distance_km }} km</dd>
+    {% endif %}
+    {% if trip.activity_gain_m %}
+    <dt class="col-sm-3">Dislivello attivita</dt><dd class="col-sm-9">{{ trip.activity_gain_m }} m</dd>
+    {% endif %}
+    {% if trip.activity_duration_h %}
+    <dt class="col-sm-3">Durata</dt><dd class="col-sm-9">{{ trip.activity_duration_h }} h</dd>
+    {% endif %}
+    {% if trip.activity_pace_min_km %}
+    <dt class="col-sm-3">Passo</dt><dd class="col-sm-9">{{ trip.activity_pace_min_km }} min/km</dd>
+    {% endif %}
+    {% if trip.activity_vam %}
+    <dt class="col-sm-3">VAM</dt><dd class="col-sm-9">{{ trip.activity_vam }} m/h</dd>
+    {% endif %}
+  </dl>
+
+  {% if trip.track %}
+    <div id="trip-map" class="mb-4"></div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  <script>
+    const track = {{ trip.track | tojson }};
+    if (Array.isArray(track) && track.length) {
+      const map = L.map('trip-map');
+      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap contributors'
+      });
+      const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenTopoMap (CC-BY-SA) OpenStreetMap contributors'
+      });
+      function tile2lat(y, z) {
+        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
+        return (180 / Math.PI) * Math.atan(Math.sinh(n));
+      }
+
+      function createSlopeLayer() {
+        const SlopeLayer = L.GridLayer.extend({
+          createTile(coords, done) {
+            const size = this.getTileSize();
+            const tile = document.createElement('canvas');
+            tile.width = size.x;
+            tile.height = size.y;
+            const ctx = tile.getContext('2d');
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0);
+              const data = ctx.getImageData(0, 0, size.x, size.y).data;
+              const output = ctx.createImageData(size.x, size.y);
+              const step = 2;
+              const lat = tile2lat(coords.y + 0.5, coords.z);
+              const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, coords.z);
+              const width = size.x;
+              const height = size.y;
+
+              function elevationAt(x, y) {
+                const idx = (y * width + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                return r * 256 + g + b / 256 - 32768;
+              }
+
+              for (let y = 1; y < height - 1; y += step) {
+                for (let x = 1; x < width - 1; x += step) {
+                  const riseX = elevationAt(x + 1, y) - elevationAt(x - 1, y);
+                  const riseY = elevationAt(x, y + 1) - elevationAt(x, y - 1);
+                  const dzdx = riseX / (2 * metersPerPixel);
+                  const dzdy = riseY / (2 * metersPerPixel);
+                  const slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
+                  if (slope >= 30) {
+                    let r = 220;
+                    let g = 60;
+                    let b = 60;
+                    let a = 170;
+                    if (slope >= 50) {
+                      r = 245;
+                      g = 200;
+                      b = 70;
+                      a = 210;
+                    } else if (slope >= 40) {
+                      r = 148;
+                      g = 90;
+                      b = 220;
+                      a = 185;
+                    }
+                    for (let oy = 0; oy < step; oy += 1) {
+                      for (let ox = 0; ox < step; ox += 1) {
+                        const px = x + ox;
+                        const py = y + oy;
+                        if (px >= width || py >= height) continue;
+                        const outIdx = (py * width + px) * 4;
+                        output.data[outIdx] = r;
+                        output.data[outIdx + 1] = g;
+                        output.data[outIdx + 2] = b;
+                        output.data[outIdx + 3] = a;
+                      }
+                    }
+                  }
+                }
+              }
+              ctx.putImageData(output, 0, 0);
+              done(null, tile);
+            };
+            img.onerror = () => {
+              done(null, tile);
+            };
+            img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${coords.z}/${coords.x}/${coords.y}.png`;
+            return tile;
+          }
+        });
+        return new SlopeLayer({ opacity: 0.35 });
+      }
+
+      const slopeLayer = createSlopeLayer();
+      topo.addTo(map);
+      slopeLayer.addTo(map);
+      L.control.layers(
+        { Strade: osm, 'Curve di livello': topo },
+        { 'Pendii >30': slopeLayer }
+      ).addTo(map);
+      const latLngs = track.map((p) => [p[0], p[1]]);
+      L.polyline(latLngs, { color: '#7fb2f0', weight: 4 }).addTo(map);
+      const last = latLngs[latLngs.length - 1];
+      if (last) {
+        L.marker(last).addTo(map).bindPopup('Arrivo').openPopup();
+      }
+      map.fitBounds(L.latLngBounds(latLngs), { padding: [30, 30] });
+    }
+  </script>
+{% endblock %}

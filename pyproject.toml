@@ -1,0 +1,26 @@
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "scialpi-log"
+version = "0.2.0"
+description = "CLI and web application to log ski mountaineering trips and avalanche reports."
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "scialpi" }, { include = "scialpi_web" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1"
+flask = "^3.0"
+python-dateutil = "^2.8"
+markdown = "^3.5"
+
+[tool.poetry.extras]
+web = ["flask"]
+
+[tool.poetry.scripts]
+scialpi = "scialpi.cli:cli"
+scialpi-web = "scialpi_web.app:main"

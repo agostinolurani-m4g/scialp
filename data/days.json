@@ -1,0 +1,36 @@
+[
+  {
+    "id": "27122025-monte-rascias-55d5a57e",
+    "route_id": "monte-rascias-55d5a57e",
+    "date": "27122025",
+    "snow_quality": "polverosa, strato debole  alla base 80 cm ",
+    "description": "io  e lafra",
+    "weather": "sole, caldo",
+    "avalanches_seen": "pera secche ",
+    "visibility": "public",
+    "group_ids": [],
+    "people_ids": [],
+    "owner_id": "00f3eff61f0c454e95a672e0535b8270"
+  },
+  {
+    "id": "23122025-monte-rascias-55d5a57e",
+    "route_id": "monte-rascias-55d5a57e",
+    "date": "23122025",
+    "snow_quality": null,
+    "description": null,
+    "weather": null,
+    "avalanches_seen": null,
+    "visibility": "public",
+    "group_ids": [],
+    "people_ids": [],
+    "owner_id": "00f3eff61f0c454e95a672e0535b8270",
+    "activity_distance_km": null,
+    "activity_gain_m": null,
+    "activity_loss_m": null,
+    "activity_duration_h": null,
+    "activity_pace_min_km": null,
+    "activity_vam": null,
+    "activity_up_hours": null,
+    "activity_down_hours": null
+  }
+]

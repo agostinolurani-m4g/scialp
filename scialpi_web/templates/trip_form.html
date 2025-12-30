@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>Nuova gita</h1>
+  <form method="post">
+    <div class="mb-3">
+      <label for="date" class="form-label">Data</label>
+      <input type="date" class="form-control" id="date" name="date" required />
+    </div>
+    <div class="mb-3">
+      <label for="title" class="form-label">Titolo</label>
+      <input type="text" class="form-control" id="title" name="title" required />
+    </div>
+    <div class="mb-3">
+      <label for="area" class="form-label">Area</label>
+      <input type="text" class="form-control" id="area" name="area" required />
+    </div>
+    <div class="mb-3">
+      <label for="specs" class="form-label">Specifiche percorso</label>
+      <input type="text" class="form-control" id="specs" name="specs" />
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="lat" class="form-label">Latitudine</label>
+        <input type="text" class="form-control" id="lat" name="lat" />
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="lon" class="form-label">Longitudine</label>
+        <input type="text" class="form-control" id="lon" name="lon" />
+      </div>
+    </div>
+    <div class="mb-3">
+      <label for="gain" class="form-label">Dislivello (m)</label>
+      <input type="number" class="form-control" id="gain" name="gain" />
+    </div>
+    <div class="mb-3">
+      <label for="distance_km" class="form-label">Distanza (km)</label>
+      <input type="number" step="0.01" class="form-control" id="distance_km" name="distance_km" />
+    </div>
+    <div class="mb-3">
+      <label for="duration" class="form-label">Durata</label>
+      <input type="text" class="form-control" id="duration" name="duration" />
+    </div>
+    <div class="mb-3">
+      <label for="difficulty" class="form-label">Difficoltà</label>
+      <input type="text" class="form-control" id="difficulty" name="difficulty" />
+    </div>
+    <div class="mb-3">
+      <label for="avalanche" class="form-label">Pericolo valanghe</label>
+      <select class="form-select" id="avalanche" name="avalanche">
+        <option value="">--</option>
+        {% for i in range(1,6) %}
+        <option value="{{ i }}">{{ i }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label for="snow" class="form-label">Condizioni neve</label>
+      <input type="text" class="form-control" id="snow" name="snow" />
+    </div>
+    <div class="mb-3">
+      <label for="weather" class="form-label">Meteo</label>
+      <input type="text" class="form-control" id="weather" name="weather" />
+    </div>
+    <div class="mb-3">
+      <label for="notes" class="form-label">Note</label>
+      <textarea class="form-control" id="notes" name="notes" rows="4"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Salva</button>
+  </form>
+{% endblock %}

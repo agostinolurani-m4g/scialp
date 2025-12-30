@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <link
+    rel="stylesheet"
+    href="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.css') }}"
+  />
+  <style>
+    #activities-map { height: 100%; width: 100%; border-radius: 12px; overflow: hidden; }
+    .search-results { max-height: 220px; overflow-y: auto; }
+    .panel-card { background: #ffffff; border: 1px solid #dbe7f5; border-radius: 10px; padding: 16px; }
+    .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
+    .detail-item { font-size: 0.85rem; margin-bottom: 4px; }
+    .detail-label { font-weight: 600; }
+    .panel-compact { padding: 12px; }
+    .panel-compact .form-label { font-size: 0.82rem; color: #5b6b7f; margin-bottom: 4px; }
+    .panel-compact .form-control,
+    .panel-compact .form-select { font-size: 0.85rem; padding: 6px 10px; }
+    .panel-compact .list-group-item { font-size: 0.85rem; padding: 6px 10px; }
+    .filter-toggle { display: flex; align-items: center; justify-content: space-between; }
+    .filter-panel { border: 1px solid #cfe0f3; background: #f3f8ff; }
+    .page-title { font-size: 1.4rem; margin-bottom: 4px; }
+    .page-subtitle { font-size: 0.9rem; margin-bottom: 12px; }
+    .map-layout { min-height: 640px; height: calc(100vh - 190px); }
+    .side-scroll { height: 100%; overflow-y: auto; padding-right: 6px; }
+    .side-stack { display: flex; flex-direction: column; gap: 12px; }
+    .side-scroll::-webkit-scrollbar { width: 6px; }
+    .side-scroll::-webkit-scrollbar-thumb { background: #cfe0f3; border-radius: 6px; }
+    .map-column { display: flex; flex-direction: column; height: 100%; gap: 10px; }
+    .map-toolbar { display: flex; align-items: center; justify-content: space-between; }
+    .map-toolbar .btn-group .btn { font-size: 0.82rem; padding: 4px 10px; }
+    .map-view { flex: 1; min-height: 0; }
+    .map-list { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid #dbe7f5; border-radius: 12px; background: #ffffff; padding: 10px; }
+    .map-list .list-group-item { border: 0; border-bottom: 1px solid #eef3fb; padding: 10px; }
+    .map-list .list-group-item:last-child { border-bottom: 0; }
+    .map-footer-line { height: 1px; background: #dbe7f5; border-radius: 2px; }
+    .trip-triangle {
+      width: 0;
+      height: 0;
+      background: transparent;
+      border: none;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 14px solid #7fb2f0;
+      transform: translate(-8px, -12px);
+    }
+    .feed-card { border: 1px solid #dbe7f5; border-radius: 14px; background: #ffffff; overflow: hidden; }
+    .feed-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: #eef4ff; }
+    .feed-body { padding: 10px 12px; }
+    .feed-meta { font-size: 0.82rem; color: #6b7a90; }
+    .feed-title { font-weight: 600; }
+    .photo-marker {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(15, 30, 60, 0.2);
+      background-size: cover;
+      background-position: center;
+      background-color: #7fb2f0;
+    }
+    @media (min-width: 992px) {
+      .activity-page { height: calc(100vh - 140px); overflow: hidden; }
+      .map-layout { height: 100%; }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="activity-page">
+    <h1 class="page-title">Attivita</h1>
+    <p class="page-subtitle">Feed della community: ultime giornate, foto e condizioni. Passa a mappa quando vuoi.</p>
+    <div class="row g-3 map-layout">
+      <div class="col-lg-3 h-100">
+        <div class="side-scroll">
+          <div class="side-stack">
+            <div class="panel-card panel-compact">
+              <div class="filter-toggle">
+                <div class="panel-title mb-0">Filtri</div>
+                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#activity-filters" aria-expanded="false" aria-controls="activity-filters">
+                  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M3 5h18M6 12h12M10 19h4" stroke="#2f7fdc" stroke-width="2" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="mt-2">
+                <label for="activity-filter-date" class="form-label">Data</label>
+                <input type="date" class="form-control" id="activity-filter-date" />
+              </div>
+              <div class="collapse" id="activity-filters">
+                <div class="panel-card panel-compact filter-panel mt-2">
+                  <form class="row g-2" id="activity-filters-form">
+                    <div class="col-12">
+                      <label for="activity-filter-visibility" class="form-label">Mostra</label>
+                      <select class="form-select" id="activity-filter-visibility">
+                        <option value="all">Tutte (pubbliche, gruppi, amici)</option>
+                        <option value="groups">Solo gruppi selezionati</option>
+                        <option value="friends">Solo amici</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">Gruppi</label>
+                      <div id="activity-filter-groups" class="list-group"></div>
+                    </div>
+                    <div class="col-6">
+                      <label for="activity-filter-distance-min" class="form-label">Distanza min (km)</label>
+                      <input type="number" class="form-control" id="activity-filter-distance-min" step="0.1" min="0" />
+                    </div>
+                    <div class="col-6">
+                      <label for="activity-filter-distance-max" class="form-label">Distanza max (km)</label>
+                      <input type="number" class="form-control" id="activity-filter-distance-max" step="0.1" min="0" />
+                    </div>
+                    <div class="col-6">
+                      <label for="activity-filter-gain-min" class="form-label">Dislivello min (m)</label>
+                      <input type="number" class="form-control" id="activity-filter-gain-min" step="10" min="0" />
+                    </div>
+                    <div class="col-6">
+                      <label for="activity-filter-gain-max" class="form-label">Dislivello max (m)</label>
+                      <input type="number" class="form-control" id="activity-filter-gain-max" step="10" min="0" />
+                    </div>
+                    <div class="col-12">
+                      <label for="activity-filter-difficulty" class="form-label">Difficolta</label>
+                      <input type="text" class="form-control" id="activity-filter-difficulty" placeholder="Es. BS, OS, facile" />
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                      <button type="submit" class="btn btn-outline-primary w-100">Applica</button>
+                      <button type="button" class="btn btn-outline-secondary w-100" id="activity-filter-clear">Reset</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-card panel-compact">
+              <div class="panel-title">Cerca luogo</div>
+              <form class="row g-2" id="activity-search-form">
+                <div class="col-12">
+                  <input type="text" class="form-control" id="activity-place-query" placeholder="Es. Monte Bianco, Cervinia..." />
+                </div>
+                <div class="col-12">
+                  <button type="submit" class="btn btn-primary w-100">Cerca</button>
+                </div>
+              </form>
+              <div id="activity-search-results" class="list-group search-results mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 h-100">
+        <div class="map-column">
+          <div class="map-toolbar">
+            <div class="panel-title mb-0">Vista</div>
+            <div class="btn-group" role="group" aria-label="Seleziona vista">
+              <button type="button" class="btn btn-primary" id="activity-view-map">Mappa</button>
+              <button type="button" class="btn btn-outline-primary" id="activity-view-list">Lista</button>
+            </div>
+          </div>
+          <div id="activities-map" class="map-view"></div>
+          <div id="activities-list" class="map-list d-none"></div>
+          <div class="map-footer-line"></div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 h-100">
+        <div class="side-scroll">
+          <div class="side-stack">
+            <div class="panel-card panel-compact" id="activity-details">
+              <div class="panel-title">Dettagli giornata</div>
+              <div class="detail-item"><span class="detail-label">Percorso:</span> <span id="activity-route-name">-</span></div>
+              <div class="detail-item"><span class="detail-label">Data:</span> <span id="activity-date">-</span></div>
+              <div class="detail-item"><span class="detail-label">Dislivello:</span> <span id="activity-gain">-</span></div>
+              <div class="detail-item"><span class="detail-label">Distanza:</span> <span id="activity-distance">-</span></div>
+              <div class="detail-item"><span class="detail-label">Neve:</span> <span id="activity-snow">-</span></div>
+              <div class="detail-item"><span class="detail-label">Meteo:</span> <span id="activity-weather">-</span></div>
+              <div class="detail-item"><span class="detail-label">Performance:</span> <span id="activity-performance">-</span></div>
+              <a href="#" class="btn btn-outline-primary btn-sm mt-2" id="activity-detail-link">Apri dettaglio</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  <script src="{{ url_for('scialpi.static', filename='js/activities_view.js') }}"></script>
+{% endblock %}

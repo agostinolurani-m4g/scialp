@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>Imposta nuova password</h1>
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  <form method="post" class="row g-3">
+    <div class="col-md-6">
+      <label for="password" class="form-label">Nuova password</label>
+      <input type="password" class="form-control" id="password" name="password" required />
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Salva password</button>
+    </div>
+  </form>
+{% endblock %}

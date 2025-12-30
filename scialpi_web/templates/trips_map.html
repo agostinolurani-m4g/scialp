@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <link
+    rel="stylesheet"
+    href="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.css') }}"
+  />
+  <style>
+    #trips-map { height: 100%; width: 100%; border-radius: 12px; overflow: hidden; }
+    .search-results { max-height: 220px; overflow-y: auto; }
+    .panel-card { background: #ffffff; border: 1px solid #dbe7f5; border-radius: 10px; padding: 16px; }
+    .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; }
+    .detail-item { font-size: 0.85rem; margin-bottom: 4px; }
+    .detail-label { font-weight: 600; }
+    .panel-compact { padding: 12px; }
+    .panel-compact .form-label { font-size: 0.82rem; color: #5b6b7f; margin-bottom: 4px; }
+    .panel-compact .form-control,
+    .panel-compact .form-select { font-size: 0.85rem; padding: 6px 10px; }
+    .panel-compact .list-group-item { font-size: 0.85rem; padding: 6px 10px; }
+    .filter-toggle { display: flex; align-items: center; justify-content: space-between; }
+    .filter-panel { border: 1px solid #cfe0f3; background: #f3f8ff; }
+    .map-page h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    .map-page p { font-size: 0.9rem; margin-bottom: 12px; }
+    .map-layout { min-height: 640px; height: calc(100vh - 190px); }
+    .side-scroll { height: 100%; overflow-y: auto; padding-right: 6px; }
+    .side-stack { display: flex; flex-direction: column; gap: 12px; }
+    .side-scroll::-webkit-scrollbar { width: 6px; }
+    .side-scroll::-webkit-scrollbar-thumb { background: #cfe0f3; border-radius: 6px; }
+    .profile-canvas { width: 100%; height: 90px; border: 1px solid #e1e4e8; border-radius: 6px; background: #fff; }
+    .slope-legend span { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 0.8rem; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .legend-line { width: 18px; height: 2px; border-radius: 2px; display: inline-block; }
+    .photo-thumb { border: 1px solid #dbe7f5; border-radius: 8px; padding: 6px; background: #f8fbff; }
+    .photo-thumb img { width: 100%; border-radius: 6px; }
+    .map-column { display: flex; flex-direction: column; height: 100%; gap: 10px; }
+    .map-toolbar { display: flex; align-items: center; justify-content: space-between; }
+    .map-toolbar .btn-group .btn { font-size: 0.82rem; padding: 4px 10px; }
+    .map-view { flex: 1; min-height: 0; }
+    .map-list { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid #dbe7f5; border-radius: 12px; background: #ffffff; padding: 10px; }
+    .map-list .list-group-item { border: 0; border-bottom: 1px solid #eef3fb; padding: 10px; }
+    .map-list .list-group-item:last-child { border-bottom: 0; }
+    .map-footer-line { height: 1px; background: #dbe7f5; border-radius: 2px; }
+    @media (min-width: 992px) {
+      .map-page { height: calc(100vh - 140px); overflow: hidden; }
+      .map-layout { height: 100%; }
+    }
+    .trip-triangle {
+      width: 0;
+      height: 0;
+      background: transparent;
+      border: none;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 14px solid #7fb2f0;
+      transform: translate(-8px, -12px);
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="map-page">
+    <h1>Backcountry Map</h1>
+    <p>Cerca una montagna o un posto, poi crea un percorso e aggiungi le giornate.</p>
+    <div class="row g-3 map-layout">
+      <div class="col-lg-3 h-100">
+        <div class="side-scroll">
+          <div class="side-stack">
+            <div class="panel-card panel-compact">
+              <div class="filter-toggle">
+                <div class="panel-title mb-0">Filtri gite</div>
+                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filters-collapse" aria-expanded="false" aria-controls="filters-collapse">
+                  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M3 5h18M6 12h12M10 19h4" stroke="#2f7fdc" stroke-width="2" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="collapse" id="filters-collapse">
+                <div class="panel-card panel-compact filter-panel mt-2">
+                  <form class="row g-2" id="route-filters">
+                    <div class="col-12">
+                      <label for="filter-visibility" class="form-label">Mostra</label>
+                      <select class="form-select" id="filter-visibility">
+                        <option value="all">Tutte (pubbliche, gruppi, amici)</option>
+                        <option value="groups">Solo gruppi selezionati</option>
+                        <option value="friends">Solo amici</option>
+                      </select>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">Gruppi</label>
+                      <div id="filter-group-list" class="list-group"></div>
+                    </div>
+                    <div class="col-6">
+                      <label for="filter-distance-min" class="form-label">Distanza min (km)</label>
+                      <input type="number" class="form-control" id="filter-distance-min" step="0.1" min="0" />
+                    </div>
+                    <div class="col-6">
+                      <label for="filter-distance-max" class="form-label">Distanza max (km)</label>
+                      <input type="number" class="form-control" id="filter-distance-max" step="0.1" min="0" />
+                    </div>
+                    <div class="col-6">
+                      <label for="filter-gain-min" class="form-label">Dislivello min (m)</label>
+                      <input type="number" class="form-control" id="filter-gain-min" step="10" min="0" />
+                    </div>
+                    <div class="col-6">
+                      <label for="filter-gain-max" class="form-label">Dislivello max (m)</label>
+                      <input type="number" class="form-control" id="filter-gain-max" step="10" min="0" />
+                    </div>
+                    <div class="col-12">
+                      <label for="filter-difficulty" class="form-label">Difficolta</label>
+                      <input type="text" class="form-control" id="filter-difficulty" placeholder="Es. BS, OS, facile" />
+                    </div>
+                    <div class="col-12 d-flex gap-2">
+                      <button type="submit" class="btn btn-outline-primary w-100" id="filter-apply">Applica</button>
+                      <button type="button" class="btn btn-outline-secondary w-100" id="filter-clear">Reset</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel-card panel-compact">
+              <div class="panel-title">Cerca luogo</div>
+              <form class="row g-2" id="trip-search-form">
+                <div class="col-12">
+                  <input type="text" class="form-control" id="place-query" placeholder="Es. Monte Bianco, Cervinia..." />
+                </div>
+                <div class="col-12">
+                  <button type="submit" class="btn btn-primary w-100">Cerca</button>
+                </div>
+              </form>
+              <div id="search-results" class="list-group search-results mt-2"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 h-100">
+        <div class="map-column">
+          <div class="map-toolbar">
+            <div class="panel-title mb-0">Vista</div>
+            <div class="d-flex gap-2 align-items-center">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="view-latest">Vedi ultime gite</button>
+              <div class="btn-group" role="group" aria-label="Seleziona vista">
+              <button type="button" class="btn btn-primary" id="view-map">Mappa</button>
+              <button type="button" class="btn btn-outline-primary" id="view-list">Lista</button>
+              </div>
+            </div>
+          </div>
+          <div id="trips-map" class="map-view"></div>
+          <div id="routes-list" class="map-list d-none"></div>
+          <div id="latest-days-list" class="map-list d-none"></div>
+          <div class="map-footer-line"></div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 h-100">
+        <div class="side-scroll">
+          <div class="side-stack">
+            <div class="panel-card panel-compact" id="route-details">
+            <div class="panel-title">Dettagli percorso</div>
+            <div class="detail-item"><span class="detail-label">Nome:</span> <span id="detail-route-name">-</span></div>
+            <div class="detail-item"><span class="detail-label">Descrizione:</span> <span id="detail-route-desc">-</span></div>
+        <div class="detail-item"><span class="detail-label">Difficolta:</span> <span id="detail-route-difficulty">-</span></div>
+        <div class="detail-item"><span class="detail-label">Dislivello:</span> <span id="detail-route-gain">-</span></div>
+        <div class="detail-item"><span class="detail-label">Distanza:</span> <span id="detail-route-distance">-</span></div>
+        <div class="detail-item"><span class="detail-label">Stima salita:</span> <span id="detail-route-estimate">-</span></div>
+        <div class="detail-item"><span class="detail-label">Pendenza media:</span> <span id="detail-route-slope">-</span></div>
+        <div class="detail-item slope-legend">
+          <span><i class="legend-dot" style="background: rgba(220, 60, 60, 0.85);"></i>Pendii &gt; 30 deg</span>
+          <span><i class="legend-dot" style="background: rgba(148, 90, 220, 0.9);"></i>&gt; 40 deg</span>
+          <span><i class="legend-dot" style="background: rgba(245, 200, 70, 0.95);"></i>&gt; 50 deg</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Profilo altimetrico:</span>
+          <canvas id="detail-route-profile" class="profile-canvas mt-2"></canvas>
+        </div>
+            <div class="panel-title mt-3">Giornate</div>
+            <div id="day-list" class="list-group"></div>
+            <div class="panel-title mt-3">Giornata selezionata</div>
+            <div class="detail-item"><span class="detail-label">Data:</span> <span id="detail-day-date">-</span></div>
+            <div class="detail-item"><span class="detail-label">Neve:</span> <span id="detail-day-snow">-</span></div>
+            <div class="detail-item"><span class="detail-label">Meteo:</span> <span id="detail-day-weather">-</span></div>
+            <div class="detail-item"><span class="detail-label">Valanghe viste:</span> <span id="detail-day-avalanches">-</span></div>
+            <div class="detail-item"><span class="detail-label">Note:</span> <span id="detail-day-notes">-</span></div>
+            <a href="#" class="btn btn-outline-primary btn-sm mt-2 d-none" id="detail-day-link">Apri dettaglio</a>
+          </div>
+
+      <div class="panel-card panel-compact">
+        <div class="panel-title">Percorso</div>
+        <form class="row g-3" id="route-form" enctype="multipart/form-data">
+          <input type="hidden" id="route-id" name="route_id" />
+          <div class="col-12">
+            <label for="route-name" class="form-label">Nome</label>
+            <input type="text" class="form-control" id="route-name" name="name" required />
+          </div>
+          <div class="col-12">
+            <label for="route-description" class="form-label">Descrizione</label>
+            <textarea class="form-control" id="route-description" name="description" rows="2"></textarea>
+          </div>
+          <div class="col-12">
+            <label for="route-difficulty" class="form-label">Difficolta</label>
+            <input type="text" class="form-control" id="route-difficulty" name="difficulty" />
+          </div>
+          <div class="col-12">
+            <div class="panel-title">Traccia percorso</div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary w-100" id="track-toggle">Inizia traccia</button>
+              <button type="button" class="btn btn-outline-secondary w-100" id="track-clear">Pulisci</button>
+            </div>
+            <small class="text-muted d-block mt-2">Clicca sulla mappa per aggiungere punti alla traccia.</small>
+            <div class="mt-2">
+              <label for="gpx" class="form-label">Carica GPX</label>
+              <input type="file" class="form-control" id="gpx" name="gpx" accept=".gpx" />
+            </div>
+          </div>
+          <input type="hidden" id="track-points" name="track_points" value="" />
+          <div class="col-12">
+            <button type="submit" class="btn btn-success w-100">Salva percorso</button>
+            <span class="ms-2 text-muted" id="route-status"></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel-card panel-compact">
+        <div class="filter-toggle">
+          <div class="panel-title mb-0">Giornata</div>
+          <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#day-collapse" aria-expanded="false" aria-controls="day-collapse" id="day-toggle">
+            Aggiungi
+          </button>
+        </div>
+        <div class="collapse" id="day-collapse">
+          <form class="row g-3 mt-2" id="day-form" enctype="multipart/form-data">
+          <input type="hidden" id="day-id" name="day_id" />
+          <input type="hidden" id="day-route-id" name="route_id" />
+          <div class="col-12">
+            <label for="day-date" class="form-label">Data (ddmmyyyy)</label>
+            <input type="text" class="form-control" id="day-date" name="date" placeholder="24022025" required />
+          </div>
+          <div class="col-12">
+            <label for="day-visibility" class="form-label">Visibilita</label>
+            <select class="form-select" id="day-visibility" name="visibility">
+              <option value="public">Pubblica</option>
+              <option value="groups">Gruppi</option>
+              <option value="friends">Amici</option>
+              <option value="people">Persone</option>
+              <option value="private">Solo io</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Gruppi</label>
+            <div id="group-list" class="list-group"></div>
+            <input type="hidden" id="day-groups" name="group_ids" />
+          </div>
+          <div class="col-12">
+            <label for="day-people" class="form-label">Persone (email, separate da virgola)</label>
+            <input type="text" class="form-control" id="day-people" name="people_emails" />
+          </div>
+          <div class="col-12">
+            <label for="snow-quality" class="form-label">Qualita neve</label>
+            <input type="text" class="form-control" id="snow-quality" name="snow_quality" />
+          </div>
+          <div class="col-12">
+            <label for="day-description" class="form-label">Descrizione</label>
+            <textarea class="form-control" id="day-description" name="day_description" rows="2"></textarea>
+          </div>
+          <div class="col-12">
+            <label for="day-weather" class="form-label">Meteo</label>
+            <input type="text" class="form-control" id="day-weather" name="weather" />
+          </div>
+          <div class="col-12">
+            <label for="day-avalanches" class="form-label">Valanghe viste</label>
+            <input type="text" class="form-control" id="day-avalanches" name="avalanches_seen" />
+          </div>
+          <div class="col-12">
+            <label for="activity-gpx" class="form-label">GPX attivita (performance)</label>
+            <input type="file" class="form-control" id="activity-gpx" name="activity_gpx" accept=".gpx" />
+            <small class="text-muted">Calcola passo, VAM e ore salita/discesa.</small>
+          </div>
+          <div class="col-12">
+            <div class="panel-title">Foto giornata</div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary w-100" id="photo-toggle">Posiziona foto</button>
+              <button type="button" class="btn btn-outline-secondary w-100" id="photo-clear">Pulisci</button>
+            </div>
+            <div class="mt-2">
+              <input type="file" class="form-control" id="photo-file" accept="image/*" />
+            </div>
+            <div class="row g-2 mt-1">
+              <div class="col-6">
+                <input type="text" class="form-control" id="photo-lat" placeholder="Lat" readonly />
+              </div>
+              <div class="col-6">
+                <input type="text" class="form-control" id="photo-lon" placeholder="Lon" readonly />
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary w-100 mt-2" id="photo-upload">Carica foto</button>
+            <span class="ms-2 text-muted" id="photo-status"></span>
+            <div class="mt-3">
+              <div class="panel-title">Foto caricate</div>
+              <div id="photo-gallery" class="d-grid gap-2"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100">Salva giornata</button>
+            <span class="ms-2 text-muted" id="day-status"></span>
+          </div>
+          </form>
+        </div>
+      </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  <script src="{{ url_for('scialpi.static', filename='js/trips_map.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>Community</h1>
+  <p>Qui trovi gruppi, inviti e amici. La logica avanzata verra aggiunta piu avanti.</p>
+  {% if current_user %}
+    <div class="text-muted mb-3">Score collaborazione: {{ current_user.score }}</div>
+  {% endif %}
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="panel-card p-3 mb-3">
+        <h2 class="h5">Gruppi</h2>
+        {% if groups %}
+          <ul class="list-group mb-3">
+            {% for group in groups %}
+              <li class="list-group-item d-flex justify-content-between">
+                <span>{{ group.name }}</span>
+                <span class="text-muted small">{{ 'Pubblico' if group.is_public else 'Privato' }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted mb-3">Non fai parte di gruppi.</div>
+        {% endif %}
+        <form id="group-form" class="row g-2">
+          <div class="col-12">
+            <label for="group-name" class="form-label">Nuovo gruppo</label>
+            <input type="text" class="form-control" id="group-name" name="name" required />
+          </div>
+          <div class="col-12">
+            <input type="text" class="form-control" id="group-description" name="description" placeholder="Descrizione (opzionale)" />
+          </div>
+          <div class="col-12 form-check">
+            <input class="form-check-input" type="checkbox" id="group-public" name="is_public" />
+            <label class="form-check-label" for="group-public">Gruppo pubblico</label>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">Crea gruppo</button>
+            <span class="text-muted ms-2" id="group-status"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="panel-card p-3 mb-3">
+        <h2 class="h5">Inviti</h2>
+        {% if invites %}
+          <ul class="list-group mb-3">
+            {% for invite in invites %}
+              <li class="list-group-item">
+                Invito per gruppo {{ invite.group_id }} - stato: {{ invite.status }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted mb-3">Nessun invito.</div>
+        {% endif %}
+        <form id="invite-form" class="row g-2">
+          <div class="col-12">
+            <label for="invite-group" class="form-label">Invita in un gruppo</label>
+            <select class="form-select" id="invite-group" name="group_id" required>
+              <option value="">Seleziona gruppo</option>
+              {% for group in groups %}
+                <option value="{{ group.id }}">{{ group.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <input type="email" class="form-control" id="invite-email" name="email" placeholder="Email" required />
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-outline-primary">Invita</button>
+            <span class="text-muted ms-2" id="invite-status"></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel-card p-3">
+        <h2 class="h5">Amici</h2>
+        <form id="friend-form" class="row g-2">
+          <div class="col-12">
+            <label for="friend-email" class="form-label">Aggiungi amico</label>
+            <input type="email" class="form-control" id="friend-email" name="email" placeholder="Email" required />
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-outline-primary">Aggiungi</button>
+            <span class="text-muted ms-2" id="friend-status"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script>
+    const groupForm = document.getElementById('group-form');
+    const groupStatus = document.getElementById('group-status');
+    const inviteForm = document.getElementById('invite-form');
+    const inviteStatus = document.getElementById('invite-status');
+    const friendForm = document.getElementById('friend-form');
+    const friendStatus = document.getElementById('friend-status');
+
+    if (groupForm) {
+      groupForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        groupStatus.textContent = 'Salvataggio...';
+        const formData = new FormData(groupForm);
+        fetch('/api/groups', { method: 'POST', body: formData })
+          .then((res) => res.json())
+          .then(() => {
+            groupStatus.textContent = 'Gruppo creato.';
+            window.location.reload();
+          })
+          .catch(() => {
+            groupStatus.textContent = 'Errore.';
+          });
+      });
+    }
+
+    if (inviteForm) {
+      inviteForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const groupId = document.getElementById('invite-group').value;
+        if (!groupId) return;
+        inviteStatus.textContent = 'Invio...';
+        const formData = new FormData(inviteForm);
+        fetch(`/api/groups/${groupId}/invite`, { method: 'POST', body: formData })
+          .then((res) => res.json())
+          .then(() => {
+            inviteStatus.textContent = 'Invito creato.';
+            window.location.reload();
+          })
+          .catch(() => {
+            inviteStatus.textContent = 'Errore.';
+          });
+      });
+    }
+
+    if (friendForm) {
+      friendForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        friendStatus.textContent = 'Invio...';
+        const formData = new FormData(friendForm);
+        fetch('/api/friends', { method: 'POST', body: formData })
+          .then((res) => res.json())
+          .then(() => {
+            friendStatus.textContent = 'Amico aggiunto.';
+          })
+          .catch(() => {
+            friendStatus.textContent = 'Errore.';
+          });
+      });
+    }
+  </script>
+{% endblock %}

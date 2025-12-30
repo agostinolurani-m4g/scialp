@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1>Giornate registrate</h1>
+  {% if trips %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Percorso</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for trip in trips %}
+          <tr>
+            <td>{{ trip.date }}</td>
+            <td>{{ trip.name }}</td>
+            <td><a href="{{ url_for('scialpi.trip_detail', slug=trip.slug) }}" class="btn btn-sm btn-primary">Dettagli</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Nessuna giornata registrata.</p>
+  {% endif %}
+{% endblock %}

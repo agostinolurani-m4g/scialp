@@ -1,0 +1,35 @@
+﻿{% extends 'base.html' %}
+
+{% block content %}
+  <h1>Registrazione</h1>
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  <form method="post" class="row g-3">
+    <div class="col-md-6">
+      <label for="name" class="form-label">Nome</label>
+      <input type="text" class="form-control" id="name" name="name" required />
+    </div>
+    <div class="col-md-6">
+      <label for="email" class="form-label">Email</label>
+      <input type="email" class="form-control" id="email" name="email" required />
+    </div>
+    <div class="col-md-6">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" class="form-control" id="password" name="password" required />
+    </div>
+    <div class="col-md-6">
+      <label for="cai_courses" class="form-label">Corsi CAI / Guida</label>
+      <input type="text" class="form-control" id="cai_courses" name="cai_courses" />
+    </div>
+    <div class="col-12">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="is_guide" name="is_guide" />
+        <label class="form-check-label" for="is_guide">Sono guida</label>
+      </div>
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Crea account</button>
+    </div>
+  </form>
+{% endblock %}

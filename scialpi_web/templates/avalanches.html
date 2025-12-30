@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <link
+    rel="stylesheet"
+    href="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.css') }}"
+  />
+  <style>
+    #map { height: 500px; width: 100%; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <h1>Segnalazioni di valanghe</h1>
+  <p>Fai clic sulla mappa per segnalare una nuova valanga. Fai clic su un marcatore esistente per confermarla.</p>
+  <form class="row g-3" id="filter-form">
+    <div class="col-md-5">
+      <label for="start-date" class="form-label">Da (data)</label>
+      <input type="date" class="form-control" id="start-date" />
+    </div>
+    <div class="col-md-5">
+      <label for="end-date" class="form-label">A (data)</label>
+      <input type="date" class="form-control" id="end-date" />
+    </div>
+    <div class="col-md-2 align-self-end">
+      <button id="apply-filter" class="btn btn-primary">Filtra</button>
+    </div>
+  </form>
+  <hr class="my-4" />
+  <h2>Nuova segnalazione</h2>
+  <form class="row g-3" id="avalanche-form">
+    <div class="col-md-3">
+      <label for="lat" class="form-label">Latitudine</label>
+      <input type="text" class="form-control" id="lat" name="lat" readonly />
+    </div>
+    <div class="col-md-3">
+      <label for="lon" class="form-label">Longitudine</label>
+      <input type="text" class="form-control" id="lon" name="lon" readonly />
+    </div>
+    <div class="col-md-6">
+      <label for="description" class="form-label">Descrizione</label>
+      <input type="text" class="form-control" id="description" name="description" />
+    </div>
+    <div class="col-md-3">
+      <label for="size" class="form-label">Dimensione</label>
+      <select class="form-select" id="size" name="size">
+        <option value="">--</option>
+        <option value="small">Piccola</option>
+        <option value="medium">Media</option>
+        <option value="large">Grande</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="danger" class="form-label">Pericolo (1-5)</label>
+      <select class="form-select" id="danger" name="danger">
+        <option value="">--</option>
+        {% for i in range(1,6) %}
+        <option value="{{ i }}">{{ i }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="slope" class="form-label">Pendenza (°)</label>
+      <input type="number" class="form-control" id="slope" name="slope" min="0" max="90" />
+    </div>
+    <div class="col-md-3">
+      <label for="image" class="form-label">Immagine</label>
+      <input type="file" class="form-control" id="image" name="image" accept="image/*" />
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-success">Salva segnalazione</button>
+      <span class="ms-2 text-muted" id="avalanche-status"></span>
+    </div>
+  </form>
+  <div id="map" class="mt-3"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  <!-- Il file JS è fornito dalla blueprint 'scialpi', non dall'app globale -->
+  <script src="{{ url_for('scialpi.static', filename='js/avalanches.js') }}"></script>
+{% endblock %}

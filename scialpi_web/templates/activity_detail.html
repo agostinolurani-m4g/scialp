@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+  <link
+    rel="stylesheet"
+    href="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.css') }}"
+  />
+  <style>
+    .activity-hero { margin-bottom: 16px; }
+    .activity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .activity-grid img { width: 100%; border-radius: 12px; border: 1px solid #dbe7f5; }
+    .activity-map { height: 320px; border-radius: 12px; overflow: hidden; border: 1px solid #dbe7f5; }
+    .activity-meta { font-size: 0.9rem; color: #6b7a90; }
+    .panel-compact { padding: 12px; }
+    .post-card { border: 1px solid #dbe7f5; border-radius: 12px; padding: 12px; background: #ffffff; }
+    .comment { font-size: 0.85rem; color: #5c6b82; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="activity-hero">
+    <h1>{{ route.name if route else 'Attivita' }}</h1>
+    <div class="activity-meta">{{ day.date }} · {{ route.difficulty if route and route.difficulty else 'Difficolta n/d' }}</div>
+  </div>
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="panel-card panel-compact mb-3">
+        <div class="panel-title">Foto giornata</div>
+        {% if photos %}
+          <div class="activity-grid">
+            {% for photo in photos %}
+              <img src="{{ url_for('scialpi.day_photo_file', filename=photo.filename) }}" alt="Foto giornata" />
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">Nessuna foto caricata.</div>
+        {% endif %}
+      </div>
+      <div class="panel-card panel-compact">
+        <div class="panel-title">Traccia</div>
+        {% if route and route.track %}
+          <div id="activity-map" class="activity-map"></div>
+        {% else %}
+          <div class="text-muted">Traccia non disponibile.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="panel-card panel-compact mb-3">
+        <div class="panel-title">Dettagli</div>
+        <div class="detail-item"><span class="detail-label">Dislivello:</span> {{ route.gain if route and route.gain else '-' }} m</div>
+        <div class="detail-item"><span class="detail-label">Distanza:</span> {{ route.distance_km if route and route.distance_km else '-' }} km</div>
+        <div class="detail-item"><span class="detail-label">Neve:</span> {{ day.snow_quality or '-' }}</div>
+        <div class="detail-item"><span class="detail-label">Meteo:</span> {{ day.weather or '-' }}</div>
+        <div class="detail-item"><span class="detail-label">Valanghe viste:</span> {{ day.avalanches_seen or '-' }}</div>
+      </div>
+
+      <div class="panel-card panel-compact mb-3">
+        <div class="panel-title">Performance</div>
+        <div class="detail-item"><span class="detail-label">Distanza attivita:</span> {{ day.activity_distance_km or '-' }} km</div>
+        <div class="detail-item"><span class="detail-label">Dislivello attivita:</span> {{ day.activity_gain_m or '-' }} m</div>
+        <div class="detail-item"><span class="detail-label">Discesa attivita:</span> {{ day.activity_loss_m or '-' }} m</div>
+        <div class="detail-item"><span class="detail-label">Durata:</span> {{ day.activity_duration_h or '-' }} h</div>
+        <div class="detail-item"><span class="detail-label">Passo:</span> {{ day.activity_pace_min_km or '-' }} min/km</div>
+        <div class="detail-item"><span class="detail-label">VAM:</span> {{ day.activity_vam or '-' }} m/h</div>
+        <div class="detail-item"><span class="detail-label">H up:</span> {{ day.activity_up_hours or '-' }} h</div>
+        <div class="detail-item"><span class="detail-label">H down:</span> {{ day.activity_down_hours or '-' }} h</div>
+      </div>
+
+      <div class="panel-card panel-compact">
+        <div class="panel-title">Post e commenti</div>
+        {% if current_user %}
+          <form method="post" action="{{ url_for('scialpi.activity_post_create', day_id=day.id) }}" class="mb-3">
+            <textarea class="form-control mb-2" name="text" rows="2" placeholder="Scrivi un post"></textarea>
+            <button type="submit" class="btn btn-primary btn-sm">Pubblica</button>
+          </form>
+        {% else %}
+          <div class="text-muted mb-3">Accedi per pubblicare.</div>
+        {% endif %}
+        {% if posts %}
+          <div class="d-grid gap-2">
+            {% for post in posts %}
+              <div class="post-card">
+                <div class="fw-semibold">{{ post.author_name }}</div>
+                <div class="mb-2">{{ post.text }}</div>
+                {% if post.comments %}
+                  <div class="d-grid gap-1 mb-2">
+                    {% for comment in post.comments %}
+                      <div class="comment"><strong>{{ comment.author_name }}:</strong> {{ comment.text }}</div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if current_user %}
+                  <form method="post" action="{{ url_for('scialpi.activity_comment_create', post_id=post.id) }}">
+                    <input type="text" class="form-control form-control-sm" name="text" placeholder="Commenta" />
+                  </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">Nessun post.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{{ url_for('scialpi.static', filename='vendor/leaflet/leaflet.js') }}"></script>
+  {% if route and route.track %}
+  <script>
+    const track = {{ route.track | tojson }};
+    if (Array.isArray(track) && track.length) {
+      const map = L.map('activity-map');
+      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap contributors'
+      });
+      const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenTopoMap (CC-BY-SA) OpenStreetMap contributors'
+      });
+      function tile2lat(y, z) {
+        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
+        return (180 / Math.PI) * Math.atan(Math.sinh(n));
+      }
+
+      function createSlopeLayer() {
+        const SlopeLayer = L.GridLayer.extend({
+          createTile(coords, done) {
+            const size = this.getTileSize();
+            const tile = document.createElement('canvas');
+            tile.width = size.x;
+            tile.height = size.y;
+            const ctx = tile.getContext('2d');
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0);
+              const data = ctx.getImageData(0, 0, size.x, size.y).data;
+              const output = ctx.createImageData(size.x, size.y);
+              const step = 2;
+              const lat = tile2lat(coords.y + 0.5, coords.z);
+              const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, coords.z);
+              const width = size.x;
+              const height = size.y;
+
+              function elevationAt(x, y) {
+                const idx = (y * width + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                return r * 256 + g + b / 256 - 32768;
+              }
+
+              for (let y = 1; y < height - 1; y += step) {
+                for (let x = 1; x < width - 1; x += step) {
+                  const riseX = elevationAt(x + 1, y) - elevationAt(x - 1, y);
+                  const riseY = elevationAt(x, y + 1) - elevationAt(x, y - 1);
+                  const dzdx = riseX / (2 * metersPerPixel);
+                  const dzdy = riseY / (2 * metersPerPixel);
+                  const slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy)) * (180 / Math.PI);
+                  if (slope >= 30) {
+                    let r = 220;
+                    let g = 60;
+                    let b = 60;
+                    let a = 170;
+                    if (slope >= 50) {
+                      r = 245;
+                      g = 200;
+                      b = 70;
+                      a = 210;
+                    } else if (slope >= 40) {
+                      r = 148;
+                      g = 90;
+                      b = 220;
+                      a = 185;
+                    }
+                    for (let oy = 0; oy < step; oy += 1) {
+                      for (let ox = 0; ox < step; ox += 1) {
+                        const px = x + ox;
+                        const py = y + oy;
+                        if (px >= width || py >= height) continue;
+                        const outIdx = (py * width + px) * 4;
+                        output.data[outIdx] = r;
+                        output.data[outIdx + 1] = g;
+                        output.data[outIdx + 2] = b;
+                        output.data[outIdx + 3] = a;
+                      }
+                    }
+                  }
+                }
+              }
+              ctx.putImageData(output, 0, 0);
+              done(null, tile);
+            };
+            img.onerror = () => {
+              done(null, tile);
+            };
+            img.src = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${coords.z}/${coords.x}/${coords.y}.png`;
+            return tile;
+          }
+        });
+        return new SlopeLayer({ opacity: 0.35 });
+      }
+
+      const slopeLayer = createSlopeLayer();
+      topo.addTo(map);
+      slopeLayer.addTo(map);
+      L.control.layers(
+        { Strade: osm, 'Curve di livello': topo },
+        { 'Pendii >30': slopeLayer }
+      ).addTo(map);
+      const latLngs = track.map((p) => [p[0], p[1]]);
+      L.polyline(latLngs, { color: '#7fb2f0', weight: 4 }).addTo(map);
+      map.fitBounds(L.latLngBounds(latLngs), { padding: [30, 30] });
+    }
+  </script>
+  {% endif %}
+{% endblock %}
