@@ -26,6 +26,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from scialpi.config import get_base_dir
+from scialpi.media_store import local_dir, media_public_url, save_media
 from scialpi.trip_manager import (
     add_trip,
     get_day,
@@ -137,6 +138,26 @@ def _parse_day_date(value: Optional[str]) -> Optional["date"]:
     return None
 
 
+def _media_url(kind: str, filename: Optional[str]) -> Optional[str]:
+    if not filename:
+        return None
+    public_url = media_public_url(kind, filename)
+    if public_url:
+        return public_url
+    if kind == "user":
+        return url_for("scialpi.user_photo_file", filename=filename)
+    if kind == "day":
+        return url_for("scialpi.day_photo_file", filename=filename)
+    if kind == "avalanche":
+        return url_for("scialpi.avalanches_image", filename=filename)
+    return None
+
+
+def _attach_day_photo_urls(photos: List[Dict[str, Any]]) -> None:
+    for photo in photos:
+        photo["url"] = _media_url("day", photo.get("filename"))
+
+
 def _build_day_cards(days: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not days:
         return []
@@ -152,11 +173,7 @@ def _build_day_cards(days: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if not route:
             continue
         photo_filename = photo_map.get(day.get("id"))
-        photo_url = (
-            url_for("scialpi.day_photo_file", filename=photo_filename)
-            if photo_filename
-            else None
-        )
+        photo_url = _media_url("day", photo_filename)
         cards.append(
             {
                 "id": day.get("id"),
@@ -511,11 +528,7 @@ def profile_page() -> str:
     days.sort(key=lambda item: item.get("date", ""), reverse=True)
     public_days = [day for day in days if _is_day_visible(day, None)]
     photo_filename = user.get("photo_filename") if user else None
-    photo_url = (
-        url_for("scialpi.user_photo_file", filename=photo_filename)
-        if photo_filename
-        else None
-    )
+    photo_url = _media_url("user", photo_filename)
     return render_template(
         "profile.html",
         user=user,
@@ -532,21 +545,19 @@ def profile_photo_upload() -> Any:
     image = request.files.get("photo")
     if not image or not image.filename:
         return redirect(url_for("scialpi.profile_page"))
-    base_dir = get_base_dir()
-    upload_dir = base_dir / "user_photos"
-    upload_dir.mkdir(parents=True, exist_ok=True)
     safe_name = secure_filename(image.filename)
     filename = f"{uuid4().hex}_{safe_name}"
-    image.save(upload_dir / filename)
+    save_media("user", image, filename)
     set_user_photo(user.get("id"), filename)
     return redirect(url_for("scialpi.profile_page"))
 
 
 @bp.route("/users/photos/<path:filename>")
 def user_photo_file(filename: str):
-    base_dir = get_base_dir()
-    upload_dir = base_dir / "user_photos"
-    return send_from_directory(upload_dir, filename)
+    public_url = media_public_url("user", filename)
+    if public_url:
+        return redirect(public_url)
+    return send_from_directory(local_dir("user"), filename)
 
 
 @bp.route("/people")
@@ -562,11 +573,7 @@ def people_page() -> str:
         if query and query not in name.lower() and query not in email.lower():
             continue
         photo_filename = entry.get("photo_filename")
-        photo_url = (
-            url_for("scialpi.user_photo_file", filename=photo_filename)
-            if photo_filename
-            else None
-        )
+        photo_url = _media_url("user", photo_filename)
         results.append(
             {
                 "id": entry.get("id"),
@@ -595,11 +602,7 @@ def people_profile(user_id: str) -> str:
     ]
     days.sort(key=lambda item: item.get("date", ""), reverse=True)
     photo_filename = person.get("photo_filename")
-    photo_url = (
-        url_for("scialpi.user_photo_file", filename=photo_filename)
-        if photo_filename
-        else None
-    )
+    photo_url = _media_url("user", photo_filename)
     return render_template(
         "user_profile.html",
         person=person,
@@ -625,6 +628,7 @@ def activity_detail(day_id: str) -> str:
     day["people_emails"] = people_emails
     route = get_route(day.get("route_id"))
     photos = list_day_photos([day_id])
+    _attach_day_photo_urls(photos)
     posts = list_posts(day_id)
     enriched_posts = []
     for post in posts:
@@ -942,6 +946,7 @@ def route_detail_api(route_id: str) -> Any:
                 people_emails.append(person.get("email"))
         day["people_emails"] = people_emails
     photos = list_day_photos([day.get("id") for day in days])
+    _attach_day_photo_urls(photos)
     return jsonify({"route": route, "days": days, "photos": photos})
 
 
@@ -1023,11 +1028,7 @@ def days_api() -> Any:
                 if owner:
                     owner_name = owner.get("name")
             photo_filename = photo_map.get(day.get("id"))
-            photo_url = (
-                url_for("scialpi.day_photo_file", filename=photo_filename)
-                if photo_filename
-                else None
-            )
+            photo_url = _media_url("day", photo_filename)
             payload.append(
                 {
                     "id": day.get("id"),
@@ -1196,12 +1197,9 @@ def avalanches_api() -> Any:
             return jsonify({"error": "Pendenza non valida"}), 400
         image = request.files.get("image")
         if image and image.filename:
-            base_dir = get_base_dir()
-            upload_dir = base_dir / "avalanche_images"
-            upload_dir.mkdir(parents=True, exist_ok=True)
             safe_name = secure_filename(image.filename)
             image_filename = f"{uuid4().hex}_{safe_name}"
-            image.save(upload_dir / image_filename)
+            save_media("avalanche", image, image_filename)
         user = _current_user()
         record = _add_avalanche(
             lat,
@@ -1243,9 +1241,10 @@ def avalanches_confirm_api(avalanche_id: int) -> Any:
 @bp.route("/avalanches/images/<path:filename>")
 def avalanches_image(filename: str):
     """Serve le immagini salvate per le segnalazioni di valanghe."""
-    base_dir = get_base_dir()
-    upload_dir = base_dir / "avalanche_images"
-    return send_from_directory(upload_dir, filename)
+    public_url = media_public_url("avalanche", filename)
+    if public_url:
+        return redirect(public_url)
+    return send_from_directory(local_dir("avalanche"), filename)
 
 
 @bp.route("/api/days/<day_id>/photos", methods=["POST"])
@@ -1282,18 +1281,17 @@ def day_photos_api(day_id: str) -> Any:
     except (TypeError, ValueError):
         lat = None
         lon = None
-    base_dir = get_base_dir()
-    upload_dir = base_dir / "day_photos"
-    upload_dir.mkdir(parents=True, exist_ok=True)
     safe_name = secure_filename(image.filename)
     filename = f"{uuid4().hex}_{safe_name}"
-    image.save(upload_dir / filename)
+    save_media("day", image, filename)
     record = add_day_photo(day_id, filename, lat, lon, user.get("id"))
+    record["url"] = _media_url("day", filename)
     return jsonify(record), 201
 
 
 @bp.route("/days/photos/<path:filename>")
 def day_photo_file(filename: str):
-    base_dir = get_base_dir()
-    upload_dir = base_dir / "day_photos"
-    return send_from_directory(upload_dir, filename)
+    public_url = media_public_url("day", filename)
+    if public_url:
+        return redirect(public_url)
+    return send_from_directory(local_dir("day"), filename)

@@ -1,0 +1,6 @@
+flask>=3.0
+click>=8.1
+python-dateutil>=2.8
+markdown>=3.5
+gunicorn>=22.0
+boto3>=1.34

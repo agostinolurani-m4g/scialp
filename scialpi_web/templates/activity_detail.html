@@ -29,7 +29,7 @@
         {% if photos %}
           <div class="activity-grid">
             {% for photo in photos %}
-              <img src="{{ url_for('scialpi.day_photo_file', filename=photo.filename) }}" alt="Foto giornata" />
+              <img src="{{ photo.url or url_for('scialpi.day_photo_file', filename=photo.filename) }}" alt="Foto giornata" />
             {% endfor %}
           </div>
         {% else %}
